@@ -15,19 +15,21 @@ Possible themes:
 Open about context
 
 https://twitter.com/mipsytipsy/status/732307148655362048
-"i wish that more people who give {technical,cultural} talks would spend time
-describing the context in which a solution worked for them."
--- @mipsytipsy (Charity Majors)
+
+    "i wish that more people who give {technical,cultural} talks would spend time
+    describing the context in which a solution worked for them."
+    -- @mipsytipsy (Charity Majors)
 
 Trade-offs (kinda framed as constraints):
 
 https://twitter.com/testobsessed/status/595949729898319873
-I prefer:
-- Recovery over Perfection
-- Predictability over Commitment
-- Safety Nets over Change Control
-- Collaboration over Handoffs
--- @testobsessed (Elisabeth Hendrickson)
+
+    I prefer:
+    - Recovery over Perfection
+    - Predictability over Commitment
+    - Safety Nets over Change Control
+    - Collaboration over Handoffs
+    -- @testobsessed (Elisabeth Hendrickson)
 
 Ideas:
 
