@@ -1,50 +1,347 @@
 <!doctype html>
 <html>
-	<head>
-		<meta charset="utf-8">
-		<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+  <head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
 
-		<title>reveal.js</title>
+    <title>Microservices: constraints and/or control - Chris Winters - 2016 Pittsburgh TechFest</title>
 
-		<link rel="stylesheet" href="css/reveal.css">
-		<link rel="stylesheet" href="css/theme/black.css">
+    <link rel="stylesheet" href="css/reveal.css">
+    <link rel="stylesheet" href="css/theme/simple.css">
 
-		<!-- Theme used for syntax highlighting of code -->
-		<link rel="stylesheet" href="lib/css/zenburn.css">
+    <!-- Theme used for syntax highlighting of code -->
+    <link rel="stylesheet" href="lib/css/zenburn.css">
 
-		<!-- Printing and PDF exports -->
-		<script>
-			var link = document.createElement( 'link' );
-			link.rel = 'stylesheet';
-			link.type = 'text/css';
-			link.href = window.location.search.match( /print-pdf/gi ) ? 'css/print/pdf.css' : 'css/print/paper.css';
-			document.getElementsByTagName( 'head' )[0].appendChild( link );
-		</script>
-	</head>
-	<body>
-		<div class="reveal">
-			<div class="slides">
-				<section>Slide 1</section>
-				<section>Slide 2</section>
-			</div>
-		</div>
+    <!-- Printing and PDF exports -->
+    <script>
+      var link = document.createElement( 'link' );
+      link.rel = 'stylesheet';
+      link.type = 'text/css';
+      link.href = window.location.search.match( /print-pdf/gi ) ? 'css/print/pdf.css' : 'css/print/paper.css';
+      document.getElementsByTagName( 'head' )[0].appendChild( link );
+    </script>
+  </head>
+<body>
+<div class="reveal">
+<div class="slides">
 
-		<script src="lib/js/head.min.js"></script>
-		<script src="js/reveal.js"></script>
+<section>
+  <h1>Microservices: constraints and control</h1>
+  <h3>Chris Winters <br /> @cwinters <br /> Turnitin</h3>
+</section>
 
-		<script>
-			// More info https://github.com/hakimel/reveal.js#configuration
-			Reveal.initialize({
-				history: true,
+<section>
+  <h2>What are we here for?</h2>
+    <p>What are they? (assumed)</p>
+    <p>How do we use them?</p>
+    <p>What do they offer?</p>
+    <p>What should you constrain?</p>
 
-				// More info https://github.com/hakimel/reveal.js#dependencies
-				dependencies: [
-					{ src: 'plugin/markdown/marked.js' },
-					{ src: 'plugin/markdown/markdown.js' },
-					{ src: 'plugin/notes/notes.js', async: true },
-					{ src: 'plugin/highlight/highlight.js', async: true, callback: function() { hljs.initHighlightingOnLoad(); } }
-				]
-			});
-		</script>
-	</body>
+  <aside class="notes">
+    - Ideas and lessons from implementing and reading <br />
+    - Mix of cultural, technical, and architectural <br />
+    - Not a tutorial about AWS, Docker, Python...(though we'll have some things
+    about all of those)
+  </aside>
+</section>
+
+<section>
+  <h2>Context</h2>
+  <blockquote class="twitter-tweet" data-lang="en">
+    <p lang="en" dir="ltr">
+      i wish that more people who give {technical,cultural} talks would
+      spend time describing the context in which a solution worked for them.
+    </p>
+    &mdash; Charity Majors (@mipsytipsy)
+    <a href="https://twitter.com/mipsytipsy/status/732307148655362048">May 16, 2016</a>
+  </blockquote>
+</section>
+
+<section>
+  <h2>My biases and context</h2>
+    <p>Small teams, small-ish companies</p>
+  <aside class="notes">
+  - Biases in the sense that they're things you focus on, sometimes to the
+  exlusion of more useful/illuminating things <br />
+  - Probably anti-big-company practices than small for small's sake <br />
+  - ...Netflix has ~1200 engineers :-)
+  </aside>
+</section>
+
+<section>
+  <h2>My biases and context</h2>
+    <p>Deeply skeptical of magic</p>
+    <p class="fragment">Relational database pro, ORM con</p>
+  <aside class="notes">
+    - Tricky: one person's magic is another's efficiency <br />
+    - ...ORMs are a form of magic :-)
+  </aside>
+</section>
+
+<section>
+  <h2>My biases and context</h2>
+    <p>Kernighan on debugging applies to more than code</p>
+    <p class="fragment">Ease cognitive load</p>
+  <aside class="notes">
+    - Kernighan: "Everyone knows that debugging is twice as hard as writing a
+      program in the first place. So if you're as clever as you can be when you
+      write it, how will you ever debug it?"<br />
+    - Who here can focus on a single problem for days or weeks? Of those,
+      how many work on a small team?
+  </aside>
+</section>
+
+<section>
+  <h2>Side-effects kill</h2>
+    <p>A change in feature X also changes feature Y</p>
+    <p class="fragment">Second order effect: fear, uncertainty, and doubt</p>
+    <p class="fragment">Response: slather on that process!</p>
+
+  <aside class="notes">
+  <ul>
+    <li>Any change counts -- the introduction of a feature, change in workflow
+      or requirements, validation or data formatting changes, etc.</li>
+    <li>First order effects include performance, semantic changes in data, or
+      just plain breakage</li>
+  </ul>
+  </aside>
+</section>
+
+<section>
+  <h2>Constraints over control</h2>
+  <p>What does that even mean?</p>
+  <p class="fragment">Constraints: define the boundaries of a thing
+    and let whatever happens in the boundary happen</p>
+  <p class="fragment">Control: define both <b>what</b> a thing must do
+    and <b>how</b> it must do its job</p>
+
+  <aside class="notes">
+  </aside>
+</section>
+
+<section>
+  <blockquote class="twitter-tweet" data-lang="en"><p lang="en" dir="ltr">
+      I prefer:
+      <br>- Recovery over Perfection
+      <br>- Predictability over Commitment
+      <br>- Safety Nets over Change Control
+      <br>- Collaboration over Handoffs
+    </p>
+    &mdash; ElisabethHendrickson (@testobsessed)
+    <a href="https://twitter.com/testobsessed/status/595949729898319873">May 6, 2015</a></blockquote>
+
+  <aside class="notes">
+    - I really like these "Prefer x over y" lists that (I think) the Agile Manifesto popularized <br />
+    - ...and we'll be revisiting trade-offs once or twice...
+  </aside>
+</section>
+
+<section>
+  <h2>Straw man?</h2>
+  <p>"But Chris, you just made those definitions up!"</p>
+  <p>Example: HTTP</p>
+  <p>Example: logging</p>
+  <p>Example: migrations</p>
+  <p>Example: code layout</p>
+  <p>Example: testing</p>
+  <aside class="notes">
+    <ul>
+      <li>HTTP: something that (a) answers HTTP (b) with a data format (JSON) as
+        (c) structured as JSON API so that (d) a particular library can handle
+        generically -- at what point does that change from constraints to control?</li>
+      <li>Logging: should you say how logging happens, or should you define the
+        set of data you need to include because of the surrounding
+        infrastructure and let code decide how it wants to do that?</li>
+      <li>Migrations: The actual need: every time this service starts it should
+        ensure it's running against the right schema</li>
+      <li>Layout: Docker and config as ENV vs "implement a main method that
+        takes args x, y, and z and references properties file located
+        in /etc/myapp.properties"</li>
+      <li>Testing: Execute some command; if it exits with 0 tests pass;
+        expect to run `coveralls` to send code coverage</li>
+    </ul>
+  </aside>
+</section>
+
+<section>
+  <h2>You control what you know</h2>
+
+  
+</section>
+
+<section>
+  <h2>Guardrails, not blinders</h2>
+
+  - Constraints in areas where you know your team (or teams in general) are
+  prone to get things wrong. Are microservices the only way to get isolation,
+  bounded contexts, independent deployability, no side-effects, etc. Nope. But
+  many (all?) of the other ways require a discipline I've seen few teams exhibit.
+
+</section>
+
+<section>
+  <iframe width="420" height="315"
+    src="https://www.youtube.com/embed/nuYxp7-Au4E?rel=0" frameborder="0"
+    allowfullscreen></iframe>
+</section>
+
+<!--
+Control:
+
+- Illusory if you're not doing it at the right level. Worst kind is when
+you *think* you have control but you don't actually.
+
+Data
+
+- Constraint: Bezos telling Amazon that services must not access other
+services' data directly. (Yegge post) This frees up the service to
+use whatever datastore it wants - NoSQL, key/value, relational, filesystem.
+
+- Control: You must use version x of database y. All tables must be fully
+normalized and all references must be backed by foreign keys.
+
+More
+
+Useful constraints for accessing data
+
+- Gets you away from integrating at the data level (...because your data live
+  forever, and if everyone can reach in and muck with tables controls your
+  ability to change by increasing the cost due to unforeseen side-effects)
+
+- Naturally restrict the way your data are accessed - arbitrary queries can
+  kill your DB (yes, even your NoSQL DB), and wrapping an API around it goes a
+  long way to ensuring that doesn't happen. Because your API will tend toward
+  smaller since maintaining a large API is so painful. (But you'll probably do
+  it anyway.)
+
+- Restricting the access to data also has side-effect of lowering the amount
+  you have to keep in your head (easier maintenance).
+
+
+Ideas:
+
+- Our system: everything is relational.
+- We are using a single database... right now.
+- Services cannot peek into other services tables...
+- ...except for reporting (still thinking about this)
+- Also: data affinity for read-only.
+-->
+
+<section>
+  <aside class="notes">
+  </aside>
+</section>
+
+<section>
+  <aside class="notes">
+  </aside>
+</section>
+
+<section>
+  <aside class="notes">
+  </aside>
+</section>
+
+<section>
+  <aside class="notes">
+  </aside>
+</section>
+
+<section>
+  <aside class="notes">
+  </aside>
+</section>
+
+<section>
+  <aside class="notes">
+  </aside>
+</section>
+
+<section>
+  <h3>Resources and references</h3>
+  <ul>
+    <li>James Lewis and Martin Fowler:
+      <a href="https://www.thoughtworks.com/insights/blog/microservices-nutshell">Microservices in a Nutshell</a>
+      which is a excerpted form of
+      <a href="http://martinfowler.com/articles/microservices.html">this article</a>
+      (Thoughtworks)</li>
+
+    <li>Fight Club: <a href="https://www.youtube.com/watch?v=nuYxp7-Au4E">"Stop trying to control everything and just let go..."</a></li>
+
+    <li><a href="https://en.wikipedia.org/wiki/Conway%27s_law">Conway's Law (wikipedia)</a>;
+      Sam Newman: <a href="https://www.thoughtworks.com/insights/blog/demystifying-conways-law">Demystifying Conway's Law</a>
+      (Thoughtworks) and the Lewis/Fowler article above also has
+      a section titled "Organized around Business Capabilities" that describes
+      it well</li>
+
+    <li><a href="https://queue.acm.org/detail.cfm?id=1142065">"You build it, you run it"</a>
+      Werner Vogels print interview (2006); also
+      <a href="http://www.se-radio.net/2006/12/episode-40-interview-werner-vogels/">this podcast interview</a>
+      from the same time.</li>
+  </ul>
+  <aside class="notes">
+  </aside>
+</section>
+
+<section>
+  <h3>Resources and references</h3>
+  <ul>
+    <li><a href="https://12factor.net/">12 Factor Apps</a>, plus a
+      <a href="http://radar.oreilly.com/2015/08/the-cloud-native-future.html">Cloud
+        Native spin</a> on them from @caseywest</li>
+
+    <li>Casey also gave his
+      <a href="https://www.youtube.com/watch?v=dFDka1X0clM">Minimum Viable Platform</a>
+      talk at Devopsdays Minneapolis a week and a half ago.</li>
+
+    <li>Adrian Cockroft has given loads of talks, this is a kind of best-of:
+      <a href="https://www.infoq.com/presentations/migration-cloud-microservices">Migrating to Cloud Native with Microservices</a>,
+      which includes a brief discussion of building per-service clients (slide 122).</li>
+  </ul>
+</section>
+
+<section>
+  <h3>Resources and references</h3>
+  <ul>
+    <li>
+      <a href="https://gist.github.com/chitchcock/1281611">Steve Yegge's platform rant</a>
+    </li>
+    <li>
+      Dan North: <a href="https://www.infoq.com/presentations/microservices-replaceability-consistency">Microservices: Software that fits in your head</a>;
+      you should just go ahead and watch <a href="https://www.infoq.com/author/Dan-North">his other presentations</a>,
+      including <a href="https://www.infoq.com/presentations/north-pimp-my-architecture">this one</a>
+      (from 2009!) that talks about the relationship between architecture and teams
+    </li>
+    <li>
+      My pinboard links:
+      <a href="https://pinboard.in/u:cwinters/t:microservices">microservices</a> |
+      <a href="https://pinboard.in/u:cwinters/t:architecture/">architecture</a> |
+      <a href="https://pinboard.in/u:cwinters/t:docker/">docker</a> |
+      <a href="https://pinboard.in/u:cwinters/t:aws/">aws</a> (you see the pattern...)
+    </li>
+  </ul>
+</section>
+
+</div>
+</div>
+
+<script src="lib/js/head.min.js"></script>
+<script src="js/reveal.js"></script>
+<script async src="//platform.twitter.com/widgets.js" charset="utf-8"></script>
+
+<script>
+  // More info https://github.com/hakimel/reveal.js#configuration
+  Reveal.initialize({
+    history: true,
+
+    // More info https://github.com/hakimel/reveal.js#dependencies
+    dependencies: [
+      { src: 'plugin/markdown/marked.js' },
+      { src: 'plugin/markdown/markdown.js' },
+      { src: 'plugin/notes/notes.js', async: true },
+      { src: 'plugin/highlight/highlight.js', async: true, callback: function() { hljs.initHighlightingOnLoad(); } }
+    ]
+  });
+</script>
+</body>
 </html>

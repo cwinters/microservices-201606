@@ -1,4 +1,57 @@
-# Ideas and flow
+# Flow:
+
+- Overview
+- Context + biases
+- Describe the app (?)
+- Why do we want to do this?
+    - Keep a thing in your head
+    - Make side-effects not-so-sidey
+    
+     
+- Define our setup: walk through dev process
+    - feature branch: work work work, push
+    - slack: make me a color environment
+    - slack: run end-to-end-tests
+    - slack: make me some classes
+    - test test test
+    - :thumbsup:
+    - PR to staging, merge => deploys
+    - test test test (maybe)
+    - PR to production, merge => deploys
+    - Slightly different for front-end and services
+- Types of services - one slide each:
+    - "Edge"
+    - "Persistence" (back-back-end?)
+    - Worker (process async jobs)
+    - Develop and test: docs, testing, data generation, load testing
+    - Helpers (database, cache, POS tagger, log)
+- Types of environments; all use Docker:
+    - Local
+    - Color
+    - Staging
+    - Production
+- Local + Color
+    - all containers on one host
+    - front-end deployed to S3
+    - extra containers for router, API docs (more later), mail catcher
+- Staging just like produduction, except:
+    - End-to-end API testing container
+- Production + Staging
+    - AWS + ECS
+    - Databases managed by AWS (RDS, Elasticache)
+    - ELB talks to nginx router/load-balancer that does some other work with Lua
+    - Every host has a client-side router/load-balancer
+    - Every host has a logging container
+    - Consul watches for Docker events and updates nginx
+- Well that's all great, but I can do that now!
+    - Are microservices the only way to get isolation, bounded contexts,
+      independent deployability, no side-effects, etc. Nope. But many (all?) of
+      the other ways require a discipline I've seen few teams exhibit.
+    - Provide constraints in areas where you know your team (or teams in
+      general) are prone to get things wrong...
+    - ...and provide freedom to experiment with new things along other vectors
+
+# Ideas
 
 Possible themes:
 
@@ -41,7 +94,76 @@ Ideas:
 
 - "Team per service" is bunk
 
-- Control is illusory
+- Control is illusory... except where it's not
+
+
+- Avoid binding with control
+
+    - Example - what you want: one document with all the API
+        - effect: nobody will remember to update
+        - what do you *really* want?
+        - one place to read
+        - solve *that* problem instead:
+            - control the format (swagger)
+            - control API for collecting (`/service/docs`)
+            - create tool to collect and merge (`spider-doc`)
+        - the control we're exerting is allowing other parts of the system to
+          leverage our work *without knowing what they want ahead of time*
+        - hey, that sounds like good design!
+
+- Similar things:
+
+    - Where is your healthcheck url?
+    - What's your agreed-upon name for certain env? (`DATABASE_URL` is a common one)
+    - What are common names for groups of 'things'? routes, models, queries, etc.
+    - How do I build your service?
+    - How do I run tests for your service?
+
+- Binding with frameworks
+
+    - IMO: Frameworks generally don't do a good job of balancing cognitive load
+      what they provide (to lessen code you need to write) vs number of layers
+      you have to know about.
+        - Example: ORMs (I know, I know) - Relating models, writing queries
+        - Example: validation
+    - Different measure than how little code: how much do I need to understand
+      to read this code? How many different files do I need to read?
+    - Example: What are your framework's assumptions about things not in its
+      direct control? Is it lowest-common-denominator (like most frameworks
+      relating to databases)?
+        - What do these assumptions remove from you permanently, and what
+          do they remove that can only be regained with a good amount of
+          effort?
+    - This is a trade-off that can be worth it! There is no silver bullet or
+      one answer.
+    - In fact, it's a constraint -- they're betting that you won't need the
+      control of a database. Or that you should have a model for every table.
+    - But when there's friction it's really bad
+    - Example: Is controlling your transactions really that gross? How many
+      abstractions have you dealt with in your career to deal with this?
+      (Autocommit? Hibernate open session in view?)
+        - We have been trained to get rid of DRY at all costs -- put all the
+          transaction handling stuff over HERE so I don't have to deal with it
+          over THERE -- but the cost at separating them is one we rarely acknowledge
+    - How little can you get away with?
+    - This will change over time, and that's okay
+    - Normal process of expansion and contraction.
+    - When you learn a new domain you read lots of maybe-useful stuff with the
+      goal of learning what the words and references mean. And only then do you
+      know enough to be able to pick and choose among the things that are
+      important.
+
+- What do you want to optimize for?
+
+    - speed
+    - independence
+
+- Control things that allow your team to work independently:
+
+    - documentation (woo swagger)
+    - client library per internal service
+    - logging context
+    - Backwards compatibility
 
 - Without automation this is not possible
 
@@ -96,8 +218,8 @@ Ideas:
     <----------------------------------------------------------->
       1.          2.          3.          4.         5.
 
-    1. Identity customers and pain
-    2. Figure out what can ease their pain
+    1. Identify customers and pain
+    2. Determine what can ease their pain
     3. Implement and test
     4. Deploy and operate
     5. Measure and evaluate
@@ -107,7 +229,7 @@ We focus so much of our efforts on 3. We design our organizations around it. We
 design our processes around it. (What's your "definition of done"? Does it have
 the words "in production"?)
 
-We need to make ALL 1-5 better.
+We need to make ALL 1-6 better, not just 3 (and 4)
 
 ## Constraint: data
 
@@ -126,6 +248,13 @@ accessed
 
 - Restricting the access to data also has side-effect of lowering the amount
   you have to keep in your head (easier maintenance).
+
+<blockquote class="twitter-tweet" data-lang="en"><p lang="en" dir="ltr">
+how much code exists simply to protect developers from relational algebra?
+</p>&mdash; Andrew Clay Shafer (@littleidea)
+<a href="https://twitter.com/littleidea/status/737007479129673728">May 29, 2016</a>
+</blockquote>
+<script async src="//platform.twitter.com/widgets.js" charset="utf-8"></script>
 
 ## Control
 
@@ -168,5 +297,24 @@ available on every host with a max message size of 4k, and you can send
 structured JSON with the following fields...".
 
 
+Dan North presentation "Pimp my architecture" has line about 33:00: "You get
+these emergent simplicities when the thing starts to take shape..." -- as you
+small systems out of larger systems, keep your eye open for commonalities or
+things to eliminate.
 
+Example: ORMs. If you're not trying to manage many entity interrelationships, and
+each service only manages a small handful of entities, then what is an ORM
+actually giving you? (Venn diagram of features in ORMs that are useful in large
+systems, then the systems that are actually useful in small systems.)
+
+
+### Other quotes
+
+"Good judgement comes from experience, experience comes from bad judgement. Bad
+judgement is okay as long as you're learning while you do it."
+(https://www.infoq.com/presentations/north-pimp-my-architecture)
+
+"The problem with having a ten-parameter function call is that you've probably
+missed a couple"
+(https://www.infoq.com/presentations/microservices-replaceability-consistency)
 
