@@ -1,14 +1,157 @@
 # Flow:
 
-- Overview
-- Context + biases
-- Describe the app (?)
-- Why do we want to do this?
+## Extra stuff
+
+- Context + biases (self indulgent?)
+- Describe the app (necessary?)
+- What parts need to be replaceable?
+    - Version control
+    - Language
+    - Database
+    - Storage
+    - Cache
+    - Frameworks
+    - CI/CD pipeline
+    - Deployment granularity
+    - Testing
+    - Logging
+    - Monitoring
+
+## Actual
+
+- What are we going to do here?
+    - Talk about the moving parts behind microservices
+    - Why are we using microservices, and what are our plans?
+    - How do they help and hinder?
+
+- Initial questions
+    - Back-end focused, not going to dig into front-end stuff in any
+      of this (build, deploy, etc)
+    - How many people have used Docker? In production?
+    - How many people are using microservices? Planning to?
+
+- Where we started (graphically)
+    - Single app taking all requests; one per EC2
+    - Single worker taking all async jobs; one per EC2
+- Where are we now (graphically)
+    - Move app and worker into Docker containers
+    - Created separate part of the app, served by microservices
+      and their own tables
+- Where we want to be (graphically)
+    - Pulling more pieces of the single app out into services
+
+- Why would we not want to do this?
+    - Operating a single app is way easier
+    - Easier to propagate patterns within single codebase
+    - Reaching into another table for a join, or a single piece of data, is easy
+    - No network call boundaries (latency)
+    - Everything is in one place, both code and things like admin tools (Django)
+- Why would we want to do this?
+    - Independence (concurrent projects)
     - Keep a thing in your head
-    - Make side-effects not-so-sidey
-    
-     
-- Define our setup: walk through dev process
+    - Speed (small things easier to test in full)
+    - Disentangle via forced separation
+    - Make side-effects explicit
+    - Small vectors for experimenting (framework, language, database,
+      design patterns)
+    - Scale at more granular level
+    - Conway's law not as big a deal for Turnitin Pittsburgh (since we're so
+      small); sidenote, "Team per service" is bunk, and sometimes I wonder if
+      that stops people from trying things
+- Well that's all great, but I can do that now!
+    - Are microservices the only way to get these things? Nope. But many (all?)
+      of the other ways require a discipline I've seen few teams exhibit.
+    - Provide constraints in areas where you know your team (or teams in
+      general) are prone to get things wrong...
+    - ...and provide freedom to experiment with new things
+
+@@@ this might go away, control vs constraint seems like a distinction without
+a difference
+- Lots of choices about what to control and what to constrain
+    - Create a constraint (the what) to incentivize the behavior you want to
+      see (or avoid) and let teams find the best way to do it
+    - Create a control if you want to specify both the what and the how
+    - Constraint: Bezos telling Amazon that services must not access other
+      services' data directly. (Yegge post) This frees up the service to
+      use whatever datastore it wants - NoSQL, key/value, relational,
+      filesystem.
+    - Control: You must use version x of database y. All tables must be fully
+      normalized and all references must be backed by foreign keys. (Or you
+      must use language x with framework y version z)
+
+
+- What are the moving parts? (list for now)
+    - See also Casey MVP presentation
+    - Deployment and configuration: how do I get it out there and working?
+    - Recovery from failure: how do I replace it when it craps out?
+    - Routing and load balancing: how does my service send messages to other services?
+    - Monitoring: how do I know how my service is performing?
+    - Logging: how do I get log messages from my service?
+
+
+- These echo the 12 Factor app
+    - Smart people have already thought about this design: 12factor.net
+    - You really need to internalize this document and goals.
+    - Focuses:
+    3. Config: Store config in the environment
+    4. Backing services: Treat backing services as attached resources
+    10. Dev/prod parity: Keep development, staging, and production as similar as possible
+    11. Logs: Treat logs as event streams
+
+@@@All, but probbly won't discuss or mention others
+    1. Codebase: One codebase tracked in revision control, many deploys
+    2. Dependencies: Explicitly declare and isolate dependencies
+    3. Config: Store config in the environment
+    4. Backing services: Treat backing services as attached resources
+    5. Build, release, run: Strictly separate build and run stages
+    6. Processes: Execute the app as one or more stateless processes
+    7. Port binding: Export services via port binding
+    8. Concurrency: Scale out via the process model
+    9. Disposability: Maximize robustness with fast startup and graceful shutdown
+    10. Dev/prod parity: Keep development, staging, and production as similar as possible
+    11. Logs: Treat logs as event streams
+    12. Admin processes: Run admin/management tasks as one-off processes
+
+
+- One thing that's missing: documentation
+    - How would you implement?
+    - Your first thought may be to have one document with all the API (control)
+        - effect: nobody will remember to update
+    - What do you *really* want?
+        - one place to *read*, which is different than one place to *write*
+    - You're controlling at the wrong level, the one you're comfortable with
+        - need to be comfortable with giving this up for a while while you get
+          comfortable with this system
+    - Solve *that* problem instead:
+            - control the format (swagger)
+            - control API for collecting (`/service/docs`)
+            - create tool to collect and merge (`spider-doc`)
+            - make it part of the same system as everything else (everything is a container)
+    - The control we're exerting is allowing other parts of the system to
+      leverage our work *without knowing what they want ahead of time*
+        - hey, that sounds like good design!
+
+
+- How does ECS deployment work?
+    - Define a named "cluster" of EC2 instances onto which you'll deploy
+      containers. This is your available compute.
+    - "Task definition" tells ECS how to run a container:
+        - Memory/CPU constraints (memory over will kill container, CPU is hint)
+        - Configuration via environment variables
+        - Docker image name (registry + path + tag)
+    - Task definition is immutable -- once you publish you cannot change
+    - Two ways to run containers:
+    - 1. Run task with definition + number of containers
+    - 2. Service with definition and stable number of containers; "deploy"
+         means update the definition.
+    - Difference: once run task finishes it's done; service maintains the
+      container count and on update does rolling deployment
+    - Automate this with rake: create task definition as JSON from templates,
+      publish to ECS with API calls
+
+
+- How do we use ECS (and other) deployment when developing a feature?
+    - overview
     - feature branch: work work work, push
     - slack: make me a color environment
     - slack: run end-to-end-tests
@@ -19,37 +162,109 @@
     - test test test (maybe)
     - PR to production, merge => deploys
     - Slightly different for front-end and services
-- Types of services - one slide each:
-    - "Edge"
-    - "Persistence" (back-back-end?)
-    - Worker (process async jobs)
-    - Develop and test: docs, testing, data generation, load testing
-    - Helpers (database, cache, POS tagger, log)
+
 - Types of environments; all use Docker:
-    - Local
-    - Color
-    - Staging
-    - Production
-- Local + Color
-    - all containers on one host
-    - front-end deployed to S3
-    - extra containers for router, API docs (more later), mail catcher
-- Staging just like produduction, except:
-    - End-to-end API testing container
-- Production + Staging
-    - AWS + ECS
-    - Databases managed by AWS (RDS, Elasticache)
-    - ELB talks to nginx router/load-balancer that does some other work with Lua
-    - Every host has a client-side router/load-balancer
-    - Every host has a logging container
-    - Consul watches for Docker events and updates nginx
-- Well that's all great, but I can do that now!
-    - Are microservices the only way to get isolation, bounded contexts,
-      independent deployability, no side-effects, etc. Nope. But many (all?) of
-      the other ways require a discipline I've seen few teams exhibit.
-    - Provide constraints in areas where you know your team (or teams in
-      general) are prone to get things wrong...
-    - ...and provide freedom to experiment with new things along other vectors
+    - Local + Color
+        - Local: deployed via rake; Color: deployed via slack
+        - all containers on one host
+        - front-end deployed to S3
+        - extra containers for router, API docs (more later), mail catcher
+    - Production + Staging
+        - AWS + ECS
+        - Databases managed by AWS (RDS, Elasticache)
+        - ELB talks to nginx router/load-balancer that does some other work with Lua
+        - Every host has a client-side router/load-balancer
+        - Every host has a logging container
+        - Consul watches for Docker events and updates nginx
+    - Staging also has:
+        - End-to-end API testing container
+
+- Color environment
+    - Entire system on a single host, datastores and all
+    - Deployable with slack, and you can specify different branches for
+      different apps to be deployed
+    - This goes against Factor 10, but that "as possible" gives us some wiggle
+      room :-)
+    - We're deciding to constrain at the Docker level and are assuming the
+      other constraints (like configuration) minimize other differences
+
+- Types of services, build up the image one at a time:
+    - 0. ELB
+        - Only thing that the outside world talks to, besides static assets on
+          S3
+    - Routers
+        - Only service that talks to the ELB, balanced across AZs
+        - Internet-facing: Gateway for internet to talk to edge services
+        - Via Consul/Consul Template gets docker events updating services
+        - Has Lua to allow some logic (Request ID, Identity lookup, JWT unpacking)
+    - "Edge"
+        - What the front-end talks to (through the router)
+        - Deals with authz
+        - May talk to multiple persistence services
+    - "Persistence" (back-back-end?)
+        - Front-end CANNOT talk to it
+        - Does not do authen/authz (though may record)
+        - Talks to datastore directly
+    - Datastore
+        - Postgres and S3 are long-term storage, and should be the only places
+          we're storing state
+        - Redis is used for cache and queue; future may use SQS for queues
+          instead
+        - Configured with environment variables containing connnection string
+    - Worker (process async jobs)
+        - Pulls jobs off Redis/SQS
+        - May talk to datastore but through shared persistence code
+        - Single codebase (and Dockerfile) for worker/server combo
+    - Others on dev/staging:
+        - docs
+        - testing
+        - data generation
+        - load testing
+    - Helpers (database, cache, POS tagger, log)
+
+- What does a typical feature look like?
+    - Admin feature to remove a student from a school and undo that removal
+    - Front- and back-end developers get together and decide on an API
+    - Front-end can develop independently with a mock-backend
+    - Back-end needs to implement feature in edge service rac-admin (to answer the front-end)
+    - Back-end also needs to implement features in persistence service to
+      cascade delete a school membership ending to all its contained classes,
+      as well as undo that
+
+- Implementation typically goes bottom-up at a fairly granular level:
+     - Persistence first to cascade delete; can PR and deploy
+     - Edge next to trigger cascade delete; can deploy feature branch with
+       front-end feature branch to color environment to test
+
+- Rules and guides
+    - You must never break backward compatibility. There's some leeway when a
+      service is still new and getting its legs, and there's only one thing
+      depending on it.
+    - Forcing absolute zero peeking into other services' databases can be
+      difficult, particularly for reporting. You can get around some of these
+      things with denormalization but then you set yourself up for data drift.
+      So we have the idea of "data affinity" -- a service can join into another
+      service's tables for read access, and only in well-marked areas, with the
+      understanding that if things change in the future we'll work to remove
+      those. It's *never* supposed to replace service calls for speed or simplicity.
+
+- Left to do:
+    - Per-persistence service clients. Persistence services will only be called
+      by other services, and those services are ours so we control both ends of
+      the conversation. Why not make a client that includes: objects to fill and
+      validate (and then serialize) instead of building up raw HTTP payloads?
+      methods to invoke instead of URL paths to type in? different HTTP results
+      (status, errors) being represented as exceptions/objects instead of forcing all
+      the service users to re-invent. (Adrian Cockroft mentions this in a
+      number of his presentations.)
+    - Testing. We have an end-to-end API testing service that works pretty
+      well. But we haven't implemented anything like Pact/Pacto, or consumer
+      driven testing.
+    - Feature flags. (@@DOES it belong here?) May seem like it doesn't belong
+      here, but it can help with decoupling and getting features moving through
+      the system faster.
+
+
 
 # Ideas
 
@@ -175,23 +390,6 @@ Ideas:
       (e.g., the only thing the deployment queue process invoked by CI/CD can
       do is add messages to a particular queue)
     - RDS (managed database, but it's still just postgres)
-
-- Constraints you should enforce:
-    - 12 Factor App (you must internalize this)
-    - Ones I'll focus on:
-    3. Config: Store config in the environment
-    4. Backing services: Treat backing services as attached resources
-    6. Processes: Execute the app as one or more stateless processes
-    8. Concurrency: Scale out via the process model
-    10. Dev/prod parity: Keep development, staging, and production as similar as possible
-    11. Logs: Treat logs as event streams
-    - Ones I'll touch on:
-    1. Codebase: One codebase tracked in revision control, many deploys
-    2. Dependencies: Explicitly declare and isolate dependencies
-    5. Build, release, run: Strictly separate build and run stages
-    7. Port binding: Export services via port binding
-    9. Disposability: Maximize robustness with fast startup and graceful shutdown
-    12. Admin processes: Run admin/management tasks as one-off processes
 
 - The technical things you need:
     - Continuous integration

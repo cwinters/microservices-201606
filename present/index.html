@@ -26,10 +26,181 @@
 <div class="slides">
 
 <section>
-  <h1>Microservices: constraints and control</h1>
+  <h1>Microservices: moving parts around</h1>
   <h3>Chris Winters <br /> @cwinters <br /> Turnitin</h3>
 </section>
 
+<section>
+  <h2>What are we doing here?</h2>
+  <p>Talk about moving parts behind microservices</p>
+  <p>Why are we using microservices, and what are our plans?</p>
+  <p>How do they help and hinder?</p>
+  <aside class="notes">
+  </aside>
+</section>
+
+<section>
+  <h2>Initial questions</h2>
+  <p>Back-end vs front-end</p>
+  <p class="fragment">Docker</p>
+  <p class="fragment">Microservices</p>
+  <p class="fragment">AWS/Azure/Google/...</p>
+  <aside class="notes">
+    - Back-end focused, not going to dig into front-end stuff in any
+    of this (build, deploy, etc)<br />
+    - How many people have used Docker? In production? <br />
+    - How many people are using microservices? Planning to? <br />
+    - How many people have used a cloud provider? Planning to?
+   </aside>
+</section>
+
+<section>
+  <h2>Where we started: Revision Assistant</h2>
+  <p>Use machine learning to help students write better</p>
+  <p>Focus on drafting process rather than scoring standards</p>
+  <p>Acquired by Turnitin in October 2014</p>
+  <aside class="notes">
+    - provide feedback (comments and scoring) to students during the drafting process <br />
+  </aside>
+</section>
+
+
+<section>
+  <h2>Where we started: architecture</h2>
+  <aside class="notes">
+    - Single app taking all requests; one per EC2 <br />
+    - Single worker taking all async jobs; one per EC2 <br />
+    - Deployment via Ansible
+  </aside>
+</section>
+
+<section>
+  <h2>Where we are now: architecture</h2>
+  <aside class="notes">
+    - Move app and worker into Docker containers, still serve a lot of traffic<br />
+    - Created separate part of the app, served by microservices and their own tables<br />
+    - Right now re-architecting the workers to scale
+  </aside>
+</section>
+
+<section>
+  <h2>Where we want to be: architecture</h2>
+  <aside class="notes">
+    - Pulling more pieces of the single app out into services <br />
+    - Merge duplicate data (users, groups, assignments) <br />
+    - Autoscaling at microservice level
+  </aside>
+</section>
+
+<section>
+  <h2>Why not?</h2>
+  <p>Operating a single app is way easier</p>
+  <p>Easier to propagate patterns within single codebase</p>
+  <p>Everything is in one place, both code and things like admin tools (Django)</p>
+  <aside class="notes">
+  </aside>
+</section>
+
+<section>
+  <h2>Why not?</h2>
+  <p>Reaching into another table for a join, or a single piece of data, is easy</p>
+  <p>No network call boundaries (latency)</p>
+  <aside class="notes">
+  </aside>
+</section>
+
+<section>
+  <h2>Why?</h2>
+  <p>Independence (concurrent projects)</p>
+  <p class="fragment">Keep a thing in your head</p>
+  <p class="fragment">...both of which help with speed</p>
+  <p class="fragment">Disentangle via forced separation</p>
+  <aside class="notes">
+    - Dan North presentation on keeping it in your head <br />
+    - Speed is the need <br />
+    - Constraint of separate processes helps ensure you don't create the God
+    Class or the Ubiquitous User Model
+  </aside>
+</section>
+
+<section>
+  <h2>Why?</h2>
+  <p>Make side-effects explicit</p>
+  <p class="fragment">Small vectors for experimenting</p>
+  <p class="fragment">Scale at more granular level</p>
+  <aside class="notes">
+    - Create subrant about side-effects? <br />
+    - Experiment with framework, language, database, design patterns... <br />
+    - It's easier (less expensive) to scale a service with a 64 MB footprint
+    than a larger server with a 256 MB footprint
+  </aside>
+</section>
+
+<section>
+  <h2>Why? (Conway's Law)</h2>
+  <p>...doesn't really apply to us, yet</p>
+  <aside class="notes">
+    - Turnitin Pittsburgh is still pretty small <br />
+    - Sidenote, don't think that a team-per-service is some golden rule you
+    have to follow.
+  </aside>
+</section>
+
+<section>
+  <h2>But... I can do that now</h2>
+  <p>Are microservices the only way to do these? NO</p>
+  <p class="fragment">...but few teams exhibit discipline to do them in monolith</p>
+  <aside class="notes">
+  </aside>
+</section>
+
+<section>
+  <h2>Guardrails not recipes</h2>
+  <p>Provide 
+    - Provide constraints in areas where you know your team (or teams in
+      general) are prone to get things wrong...
+    - ...and provide freedom to experiment with new things 
+  <aside class="notes">
+  </aside>
+</section>
+
+<section>
+  <h2></h2>
+  <aside class="notes">
+  </aside>
+</section>
+
+<section>
+  <h2></h2>
+  <aside class="notes">
+  </aside>
+</section>
+
+<section>
+  <h2></h2>
+  <aside class="notes">
+  </aside>
+</section>
+
+<section>
+  <h2></h2>
+  <aside class="notes">
+  </aside>
+</section>
+
+<section>
+  <h2></h2>
+  <aside class="notes">
+  </aside>
+</section>
+
+
+
+
+
+
+
+<!-- OLD STUFF -->
 <section>
   <h2>What are we here for?</h2>
     <p>What are they? (assumed)</p>
@@ -228,31 +399,37 @@ Ideas:
 -->
 
 <section>
+  <h2></h2>
   <aside class="notes">
   </aside>
 </section>
 
 <section>
+  <h2></h2>
   <aside class="notes">
   </aside>
 </section>
 
 <section>
+  <h2></h2>
   <aside class="notes">
   </aside>
 </section>
 
 <section>
+  <h2></h2>
   <aside class="notes">
   </aside>
 </section>
 
 <section>
+  <h2></h2>
   <aside class="notes">
   </aside>
 </section>
 
 <section>
+  <h2></h2>
   <aside class="notes">
   </aside>
 </section>
