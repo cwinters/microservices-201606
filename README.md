@@ -113,25 +113,6 @@ a difference
     12. Admin processes: Run admin/management tasks as one-off processes
 
 
-- One thing that's missing: documentation
-    - How would you implement?
-    - Your first thought may be to have one document with all the API (control)
-        - effect: nobody will remember to update
-    - What do you *really* want?
-        - one place to *read*, which is different than one place to *write*
-    - You're controlling at the wrong level, the one you're comfortable with
-        - need to be comfortable with giving this up for a while while you get
-          comfortable with this system
-    - Solve *that* problem instead:
-            - control the format (swagger)
-            - control API for collecting (`/service/docs`)
-            - create tool to collect and merge (`spider-doc`)
-            - make it part of the same system as everything else (everything is a container)
-    - The control we're exerting is allowing other parts of the system to
-      leverage our work *without knowing what they want ahead of time*
-        - hey, that sounds like good design!
-
-
 - How does ECS deployment work?
     - Define a named "cluster" of EC2 instances onto which you'll deploy
       containers. This is your available compute.
@@ -151,7 +132,6 @@ a difference
 
 
 - How do we use ECS (and other) deployment when developing a feature?
-    - overview
     - feature branch: work work work, push
     - slack: make me a color environment
     - slack: run end-to-end-tests
@@ -162,6 +142,25 @@ a difference
     - test test test (maybe)
     - PR to production, merge => deploys
     - Slightly different for front-end and services
+
+- Sidebar - One factor that's missing: documentation
+    - How would you implement?
+    - Your first thought may be to have one document with all the API (control)
+        - effect: nobody will remember to update
+    - What do you *really* want?
+        - one place to *read*, which is different than one place to *write*
+    - You're controlling at the wrong level, the one you're comfortable with
+        - need to be comfortable with giving this up for a while while you get
+          comfortable with this system
+    - Solve *that* problem instead:
+            - control the format (swagger)
+            - control API for collecting (`/service/docs`)
+            - create tool to collect and merge (`spider-doc`)
+            - make it part of the same system as everything else (everything is a container)
+    - The control we're exerting is allowing other parts of the system to
+      leverage our work *without knowing what they want ahead of time*
+        - hey, that sounds like good design!
+
 
 - Types of environments; all use Docker:
     - Local + Color
@@ -510,9 +509,18 @@ systems, then the systems that are actually useful in small systems.)
 
 "Good judgement comes from experience, experience comes from bad judgement. Bad
 judgement is okay as long as you're learning while you do it."
-(https://www.infoq.com/presentations/north-pimp-my-architecture)
+(Dan North, https://www.infoq.com/presentations/north-pimp-my-architecture)
 
 "The problem with having a ten-parameter function call is that you've probably
 missed a couple"
-(https://www.infoq.com/presentations/microservices-replaceability-consistency)
+(Dan North quoting Perlis (?), https://www.infoq.com/presentations/microservices-replaceability-consistency)
+
+"The work of implementing a feature initially is often a tiny fraction of the
+work to support that feature over the lifetime of a product, and yes, we can
+"just" code any logic someone dreams up. What might take two weeks right now
+adds a marginal cost to every engineering project we'll take on in this product
+in the future. In fact, I'd argue that the initial time spent implementing a
+feature is one of the least interesting data points to consider when weighing
+the cost and benefit of a feature."
+(Kris Gale, http://firstround.com/review/The-one-cost-engineers-and-product-managers-dont-consider/)
 

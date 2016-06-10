@@ -20,14 +20,37 @@
       link.href = window.location.search.match( /print-pdf/gi ) ? 'css/print/pdf.css' : 'css/print/paper.css';
       document.getElementsByTagName( 'head' )[0].appendChild( link );
     </script>
+
+    <style type="text/css">
+      /* ugh, this didn't work... */
+      .noborder section img {
+        border: none;
+        background: none;
+        box-shadow: none;
+      }
+
+      span.code {
+        font-family: Andale Mono, monospace;
+        background: #cccccc;
+      }
+    </style>
   </head>
 <body>
 <div class="reveal">
 <div class="slides">
 
 <section>
-  <h1>Microservices: moving parts around</h1>
-  <h3>Chris Winters <br /> @cwinters <br /> Turnitin</h3>
+  <h2>Microservices: moving parts around</h2>
+  <p>&nbsp;</p>
+  <h3>Chris Winters</h3>
+  <p>&nbsp;</p>
+  <p>@cwinters
+    <br />
+    Turnitin
+    <br />
+  </p>
+  <img src="lib/images/turnitin.png" alt="Turnitin logo"
+    width="106" height="35" style="border: none" />
 </section>
 
 <section>
@@ -41,32 +64,46 @@
 
 <section>
   <h2>Initial questions</h2>
-  <p>Back-end vs front-end</p>
   <p class="fragment">Docker</p>
   <p class="fragment">Microservices</p>
   <p class="fragment">AWS/Azure/Google/...</p>
   <aside class="notes">
-    - Back-end focused, not going to dig into front-end stuff in any
-    of this (build, deploy, etc)<br />
     - How many people have used Docker? In production? <br />
     - How many people are using microservices? Planning to? <br />
-    - How many people have used a cloud provider? Planning to?
+    - How many people have used a cloud provider? Planning to? <br />
+    - Back-end focused, not going to dig into front-end stuff in any
+    of this (build, deploy, etc)<br />
    </aside>
 </section>
 
 <section>
+  <h2>Context</h2>
+  <div>
+  <a href="https://twitter.com/mipsytipsy/status/732307148655362048">
+    <img src="lib/images/charity_majors_context_tweet.png" width="612" height="356"
+       alt="i wish that more people who give {technical,cultural} talks would spend time describing the context in which a solution worked for them." />
+  </a>
+  </div>
+</section>
+
+<section>
   <h2>Where we started: Revision Assistant</h2>
-  <p>Use machine learning to help students write better</p>
-  <p>Focus on drafting process rather than scoring standards</p>
-  <p>Acquired by Turnitin in October 2014</p>
+  <img class="fragment" data-fragment-index="2" 
+    src="lib/images/ra_student_writing.png" align="right" style="border: none; box-shadow: none"
+    width="400" height="297" alt="Revision Assistant student writing interface" />
+  <p class="fragment" data-fragment-index="1">Pittsburgh company! (previously: Lightside Labs)</p>
+  <p class="fragment" data-fragment-index="1">Use machine learning to help students write better</p>
+  <p class="fragment" data-fragment-index="2">Focus on drafting process rather than scoring against standards</p>
   <aside class="notes">
     - provide feedback (comments and scoring) to students during the drafting process <br />
+    - acquired by Turnitin in October 2014<
   </aside>
 </section>
 
 
 <section>
   <h2>Where we started: architecture</h2>
+  (TODO image here)
   <aside class="notes">
     - Single app taking all requests; one per EC2 <br />
     - Single worker taking all async jobs; one per EC2 <br />
@@ -76,6 +113,7 @@
 
 <section>
   <h2>Where we are now: architecture</h2>
+  (TODO image here)
   <aside class="notes">
     - Move app and worker into Docker containers, still serve a lot of traffic<br />
     - Created separate part of the app, served by microservices and their own tables<br />
@@ -85,6 +123,7 @@
 
 <section>
   <h2>Where we want to be: architecture</h2>
+  (TODO image here)
   <aside class="notes">
     - Pulling more pieces of the single app out into services <br />
     - Merge duplicate data (users, groups, assignments) <br />
@@ -96,23 +135,27 @@
   <h2>Why not?</h2>
   <p>Operating a single app is way easier</p>
   <p>Easier to propagate patterns within single codebase</p>
-  <p>Everything is in one place, both code and things like admin tools (Django)</p>
+  <p>Everything is in one place...
+  <p>...code and admin tools (Django)</p>
   <aside class="notes">
+    - why would you NOT want to do this? <br />
+    - "NBD, I'll distribute my code..." now you're dealing with packagingh hell...
   </aside>
 </section>
 
 <section>
   <h2>Why not?</h2>
-  <p>Reaching into another table for a join, or a single piece of data, is easy</p>
+  <p>Reaching into another table is easy</p>
   <p>No network call boundaries (latency)</p>
   <aside class="notes">
+    - reaching: for a join, or a single piece of data, lookup, or...
   </aside>
 </section>
 
 <section>
   <h2>Why?</h2>
-  <p>Independence (concurrent projects)</p>
-  <p class="fragment">Keep a thing in your head</p>
+  <p>Keep a thing in your head</p>
+  <p class="fragment">Independence (concurrent projects)</p>
   <p class="fragment">...both of which help with speed</p>
   <p class="fragment">Disentangle via forced separation</p>
   <aside class="notes">
@@ -148,18 +191,217 @@
 
 <section>
   <h2>But... I can do that now</h2>
-  <p>Are microservices the only way to do these? NO</p>
+  <p>Are microservices the only way to do these?</p>
+  <p class="fragment">
+    <img src="lib/images/homer_no.jpg" width="500" height="335" style="border: none; box-shadow: none" alt="Homer says no" />
+  </p>
   <p class="fragment">...but few teams exhibit discipline to do them in monolith</p>
   <aside class="notes">
   </aside>
 </section>
 
 <section>
-  <h2>Guardrails not recipes</h2>
-  <p>Provide 
-    - Provide constraints in areas where you know your team (or teams in
-      general) are prone to get things wrong...
-    - ...and provide freedom to experiment with new things 
+  <h2>Prefer guardrails over recipes</h2>
+  <p>Provide constraints in areas of uncertainty</p>
+  <p class="fragment">...to enable freedom to experiment in others</p>
+  <aside class="notes">
+    - "Uncertainty" - where your team (or teams in general) are prone
+    to get things wrong<br />
+    - 
+  </aside>
+</section>
+
+<!--
+@@@ this might go away, control vs constraint seems like a distinction without
+a difference
+- Lots of choices about what to control and what to constrain
+    - Create a constraint (the what) to incentivize the behavior you want to
+      see (or avoid) and let teams find the best way to do it
+    - Create a control if you want to specify both the what and the how
+    - Constraint: Bezos telling Amazon that services must not access other
+      services' data directly. (Yegge post) This frees up the service to
+      use whatever datastore it wants - NoSQL, key/value, relational,
+      filesystem.
+    - Control: You must use version x of database y. All tables must be fully
+      normalized and all references must be backed by foreign keys. (Or you
+      must use language x with framework y version z)
+-->
+
+<section>
+  <h2>What are the moving parts?</h2>
+  <p>Deployment and configuration</p>
+  <p class="fragment">Routing and load balancing</p>
+  <p class="fragment">Monitoring</p>
+  <p class="fragment">Logging</p>
+  <p class="fragment">Recovery</p>
+
+  <aside class="notes">
+    - how do I get it out there and talking <br />
+    - how does my service send messages to other services? <br />
+    - how are they doing (performing)? <br />
+    - how do I get log messages from my service? <br />
+    - how do I replace it when it craps out <br />
+  </aside>
+</section>
+
+<section>
+  <h2>12 Factor Echo</h2>
+  <p>Smart people have already <a href="https://12factor.net">thought about</a> this design</p>
+  <p class="fragment"><b>You really need to internalize this document and goals.</b></p>
+  <div class="fragment">
+    <p>Just a few:</p>
+    <p>3. Config: Store in the environment</p>
+    <p>4. Backing services: Treat as attached resources</p>
+    <p>11. Logs: Treat as event streams</p>
+  </div>
+  <aside class="notes">
+  - 'Attached resources' - configured via the environment
+  </aside>
+</section>
+
+<section>
+  <h2>ECS basics</h2>
+  <p>"Cluster": EC2 instances providing compute pool</p>
+  <p class="fragment">"Task definition": immutable metadata to run container</p>
+  <div class="fragment">
+    <p>- Resource constraints</p>
+    <p>- Environment (12 Factor: 3)</p>
+    <p>- Docker image</p>
+    <p>- Linked containers</p>
+    <p class="fragment">- ...stuff you use with <span class="code">docker run...</span></p>
+  </div>
+  <aside class="notes">
+    - Memory/CPU constraints (memory over will kill container, CPU is hint) <br />
+    - Configuration via environment variables <br />
+    - Docker image name (registry + path + tag) <br />
+    - Linked containers are ones that always need to run together
+  </aside>
+</section>
+
+<section>
+  <h2>ECS basics</h2>
+  <img src="lib/images/ecs_config_plus_container.png" width="907" height="663"
+    alt="ECS: Config + Container" style="border: none; box-shadow: none" />
+</section>
+
+<section>
+  <h2>ECS basics: run types</h2>
+  <p>"Run task": go now, n times, and leave when you're done</p>
+  <p>"Service": go now, n times, and stick around...</p>
+  <p class="fragment">...updates, rolling deploys, ELB, and autoscaling</p>
+  <aside class="notes">
+    - Difference: once run task finishes it's done; service maintains the
+      container count and on update does rolling deployment
+  </aside>
+</section>
+
+<section>
+  <h2>ECS: bare bones</h2>
+  
+<section>
+  <img src="lib/images/deployment_moving_parts.png" width="907" height="663"
+    alt="Deployment" style="border: none; box-shadow: none" />
+  <aside class="notes">
+  </aside>
+</section>
+
+<section>
+  <h2>Developing a feature</h2>
+  <img class="fragment" data-fragment-index="1"
+    src="lib/images/slack_color_mgmt.png" align="right" style="border: none; box-shadow: none"
+    width="500" height="452" alt="Managing color environments" />
+  <p>Feature branch: work work work =&gt; push</p>
+  <p class="fragment" data-fragment-index="1">Slack: make me a color environment</p>
+  <div class="fragment" data-fragment-index="2">
+    <p>Slack: run end-to-end-tests </p>
+    <p>Slack: make me some classes </p>
+    <p>Test test test...</p>
+  </div>
+  <aside class="notes">
+  </aside>
+</section>
+
+<section>
+  <h2>Developing a feature</h2>
+  <p>code review <img src="lib/images/thumbsup.png" width="54" height="50"
+    style="border: none; box-shadow: none" alt="LGTM" /></p>
+  <p>PR to staging, merge =&gt; deploys</p>
+
+  <p>PR to production, merge =&gt; deploys </p>
+  <p>Slightly different for front-end and services</p>
+  <aside class="notes">
+  </aside>
+</section>
+
+<section>
+  <h2>Environments</h2>
+  <p>Local + "Color"</p>
+  <div class="fragment">
+    <p>All containers on one host</p>
+    <p>Includes datastores</p>
+    <p>Front-end deployed to S3</p>
+    <p>Extra containers for router, docs<sup>*</sup>, mail</p>
+  </div>
+  <aside class="notes">
+  </aside>
+</section>
+
+<section>
+  <h2>"Color"?</h2>
+  <p>Deployable with slack</p>
+  <p>Specify different branches for different services</p>
+  <p>...against Factor 10, but: "similar as possible"</p>
+  <p>Constrain at Docker, assume other differences minimized for these purposes</p>
+  <aside class="notes">
+    - thank you lightbot! <br />
+    - 10. Dev/prod parity: Keep development, staging, and production as similar
+    as possible
+  </aside>
+</section>
+
+<section>
+  <h2>Types of services</h2>
+  <p>Basic flow from API call through the system</p>
+</section>
+
+<section>
+  <img src="lib/images/type_0_elb.png" width="907" height="663"
+    alt="ELB" style="border: none; box-shadow: none" />
+  <aside class="notes">
+  </aside>
+</section>
+
+<section data-transition-speed="fast">
+  <img src="lib/images/type_1_router.png" width="907" height="663"
+    alt="router" style="border: none; box-shadow: none" />
+  <aside class="notes">
+  </aside>
+</section>
+
+<section data-transition-speed="fast">
+  <img src="lib/images/type_2_edge.png" width="907" height="663"
+    alt="edge" style="border: none; box-shadow: none" />
+  <aside class="notes">
+  </aside>
+</section>
+
+<section data-transition-speed="fast">
+  <img src="lib/images/type_3_persistence.png" width="907" height="663"
+    alt="persistence" style="border: none; box-shadow: none" />
+  <aside class="notes">
+  </aside>
+</section>
+
+<section data-transition-speed="fast">
+  <img src="lib/images/type_4_datastore.png" width="907" height="663"
+    alt="datastore" style="border: none; box-shadow: none" />
+  <aside class="notes">
+  </aside>
+</section>
+
+<section data-transition-speed="fast">
+  <img src="lib/images/type_5_worker.png" width="907" height="663"
+    alt="worker" style="border: none; box-shadow: none" />
   <aside class="notes">
   </aside>
 </section>
@@ -182,20 +424,46 @@
   </aside>
 </section>
 
+
 <section>
-  <h2></h2>
+  <h2>Sidebar: Missing factor</h2>
+  <p class="fragment">Documentation</p>
+  <p class="fragment">First idea: one document to rule them all</p>
+  <p class="fragment">What do you <b>really</b> want?</p>
   <aside class="notes">
+    - Your first thought may be to have one document with all the API (control)
+    - effect: nobody will remember to update <br />
+    - ...also, nobody reads, but whatever
   </aside>
 </section>
 
 <section>
-  <h2></h2>
+  <h2>One place to read</h2>
+  <p>Different than one place to <b>write</b></p>
+  <div class="fragment">
+    <p>Your instinct is to control at the wrong level</p>
+    <p>It's what you're comfortable with</p>
+    <p>You are mutable</p>
+  </div>
   <aside class="notes">
+    - need to be comfortable with giving up control for a while while you get
+    comfortable with this system
   </aside>
 </section>
 
+<section>
+  <h2>Solve that problem instead</h2>
 
-
+  <p>Control the format (swagger) and API (<span class="code">/service/docs</span>)</p>
+  <p>Tool to collect and merge (<span class="code">spider-doc</span>)</p>
+  <p>Everything is a container</p>
+  <p>Control allows leverage</p>
+  <aside class="notes">
+    - The control we're exerting is allowing other parts of the system to
+    leverage our work *without knowing what they want ahead of time* <br />
+    - hey, that sounds like good design!
+  </aside>
+</section>
 
 
 
@@ -214,18 +482,6 @@
     - Not a tutorial about AWS, Docker, Python...(though we'll have some things
     about all of those)
   </aside>
-</section>
-
-<section>
-  <h2>Context</h2>
-  <blockquote class="twitter-tweet" data-lang="en">
-    <p lang="en" dir="ltr">
-      i wish that more people who give {technical,cultural} talks would
-      spend time describing the context in which a solution worked for them.
-    </p>
-    &mdash; Charity Majors (@mipsytipsy)
-    <a href="https://twitter.com/mipsytipsy/status/732307148655362048">May 16, 2016</a>
-  </blockquote>
 </section>
 
 <section>
@@ -497,6 +753,11 @@ Ideas:
       <a href="https://pinboard.in/u:cwinters/t:aws/">aws</a> (you see the pattern...)
     </li>
   </ul>
+</section>
+
+<section>
+  <h2>Images</h2>
+  <p><a href="http://slidedeck.io/november-eleven/docker-101">Docker blue whale container</a></p>
 </section>
 
 </div>
