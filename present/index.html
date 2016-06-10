@@ -260,13 +260,26 @@ a difference
 </section>
 
 <section>
-  <h2>ECS basics</h2>
-  <p>"Cluster": EC2 instances providing compute pool</p>
-  <p class="fragment">"Task definition": immutable metadata to run container</p>
+  <h2>ECS basics: Cluster</h2>
+  <p>EC2 instances providing compute pool of compute</p>
+  <p>Can be in single AZ or spread across</p>
+  <p>ECS scheduler will run tasks in different AZs if possible</p>
+  <aside class="notes">
+  </aside>
+</section>
+
+<section>
+  <img src="lib/images/ecs_cluster_instance_types.png" width="907" height="663"
+    alt="ECS cluster instance types" style="border: none; box-shadow: none" />
+</section>
+
+<section>
+  <h2>ECS basics: Task definition</h2>
+  <p class="fragment">Immutable metadata to run container</p>
   <div class="fragment">
     <p>- Resource constraints</p>
-    <p>- Environment (12 Factor: 3)</p>
-    <p>- Docker image</p>
+    <p>- Environment (12 Factor: #3)</p>
+    <p>- Docker image tag</p>
     <p>- Linked containers</p>
     <p class="fragment">- ...stuff you use with <span class="code">docker run...</span></p>
   </div>
@@ -279,16 +292,18 @@ a difference
 </section>
 
 <section>
-  <h2>ECS basics</h2>
   <img src="lib/images/ecs_config_plus_container.png" width="907" height="663"
     alt="ECS: Config + Container" style="border: none; box-shadow: none" />
 </section>
 
 <section>
-  <h2>ECS basics: run types</h2>
-  <p>"Run task": go now, n times, and leave when you're done</p>
-  <p>"Service": go now, n times, and stick around...</p>
-  <p class="fragment">...updates, rolling deploys, ELB, and autoscaling</p>
+  <h2>ECS basics: Schedulers run tasks</h2>
+  <p>Given resource constraints, where to put the task?</p>
+  <div class="fragment">
+    <p>"Run task": go now, n times, and leave when you're done</p>
+    <p>"Service": go now, n times, and stick around...</p>
+    <p class="fragment">...updates, rolling deploys, ELB, and autoscaling</p>
+  </div>
   <aside class="notes">
     - Difference: once run task finishes it's done; service maintains the
       container count and on update does rolling deployment
@@ -296,8 +311,18 @@ a difference
 </section>
 
 <section>
-  <h2>ECS: bare bones</h2>
-  
+  <h2>ECS: What's missing?</h2>
+  <p>Deployment and configuration: OK</p>
+  <p>Routing and load balancing: So-so</p>
+  <p>Monitoring: Meh</p>
+  <p>Logging: So-so</p>
+  <p>Recovery: OK</p>
+  <aside class="notes">
+    This is how AWS works: they build something really basic with a couple
+    hooks into the ecosystem, then they improve it over time as well as 
+    improve the hooks.
+  </aside>
+</section>
 <section>
   <img src="lib/images/deployment_moving_parts.png" width="907" height="663"
     alt="Deployment" style="border: none; box-shadow: none" />
