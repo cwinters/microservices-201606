@@ -524,3 +524,62 @@ feature is one of the least interesting data points to consider when weighing
 the cost and benefit of a feature."
 (Kris Gale, http://firstround.com/review/The-one-cost-engineers-and-product-managers-dont-consider/)
 
+
+<!--
+Control:
+
+- Illusory if you're not doing it at the right level. Worst kind is when
+you *think* you have control but you don't actually.
+
+Data
+
+- Constraint: Bezos telling Amazon that services must not access other
+services' data directly. (Yegge post) This frees up the service to
+use whatever datastore it wants - NoSQL, key/value, relational, filesystem.
+
+- Control: You must use version x of database y. All tables must be fully
+normalized and all references must be backed by foreign keys.
+
+More
+
+Useful constraints for accessing data
+
+- Gets you away from integrating at the data level (...because your data live
+  forever, and if everyone can reach in and muck with tables controls your
+  ability to change by increasing the cost due to unforeseen side-effects)
+
+- Naturally restrict the way your data are accessed - arbitrary queries can
+  kill your DB (yes, even your NoSQL DB), and wrapping an API around it goes a
+  long way to ensuring that doesn't happen. Because your API will tend toward
+  smaller since maintaining a large API is so painful. (But you'll probably do
+  it anyway.)
+
+- Restricting the access to data also has side-effect of lowering the amount
+  you have to keep in your head (easier maintenance).
+
+
+Ideas:
+
+- Our system: everything is relational.
+- We are using a single database... right now.
+- Services cannot peek into other services tables...
+- ...except for reporting (still thinking about this)
+- Also: data affinity for read-only.
+-->
+
+<!--
+@@@ this might go away, control vs constraint seems like a distinction without
+a difference
+- Lots of choices about what to control and what to constrain
+    - Create a constraint (the what) to incentivize the behavior you want to
+      see (or avoid) and let teams find the best way to do it
+    - Create a control if you want to specify both the what and the how
+    - Constraint: Bezos telling Amazon that services must not access other
+      services' data directly. (Yegge post) This frees up the service to
+      use whatever datastore it wants - NoSQL, key/value, relational,
+      filesystem.
+    - Control: You must use version x of database y. All tables must be fully
+      normalized and all references must be backed by foreign keys. (Or you
+      must use language x with framework y version z)
+-->
+

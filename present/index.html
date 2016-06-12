@@ -4,7 +4,7 @@
     <meta charset="utf-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
 
-    <title>Microservices: constraints and/or control - Chris Winters - 2016 Pittsburgh TechFest</title>
+    <title>Microservices: moving stuff around - Chris Winters - 2016 Pittsburgh TechFest</title>
 
     <link rel="stylesheet" href="css/reveal.css">
     <link rel="stylesheet" href="css/theme/simple.css">
@@ -77,6 +77,7 @@
 </section>
 
 <section>
+  <section>
   <h2>Context</h2>
   <div>
   <a href="https://twitter.com/mipsytipsy/status/732307148655362048">
@@ -84,71 +85,163 @@
        alt="i wish that more people who give {technical,cultural} talks would spend time describing the context in which a solution worked for them." />
   </a>
   </div>
+  </section>
+
+  <section>
+    <h2>My biases and context</h2>
+      <p>Small teams, small-ish companies</p>
+    <aside class="notes">
+    - Biases in the sense that they're things you focus on, sometimes to the
+    exlusion of more useful/illuminating things <br />
+    - Probably anti-big-company practices than small for small's sake <br />
+    - ...Netflix has ~1200 engineers :-)
+    </aside>
+  </section>
+  
+  <section>
+    <h2>My biases and context</h2>
+      <p>Deeply skeptical of magic</p>
+      <p class="fragment">Relational database pro, ORM con</p>
+    <aside class="notes">
+      - Tricky: one person's magic is another's efficiency <br />
+      - ...ORMs are a form of magic :-)
+    </aside>
+  </section>
+
+  <section>
+  <div>
+  <a href="https://twitter.com/littleidea/status/737007479129673728">
+    <img src="lib/images/littleidea_avoid_relational_algebra.png" width="608" height="295"
+       alt="how much code exists simply to protect developers from relational algebra?" />
+  </a>
+  </div>
+  </section>
+
+  <section>
+  <div>
+    <img src="lib/images/guspower_microservices_sql_join_over_http.png" width="624" height="415"
+       alt="but I thought microservices are SQL tables that we join over http?" />
+  </div>
+</section>
+
+  <section>
+    <h2>My biases and context</h2>
+      <p>Kernighan on debugging applies to more than code</p>
+      <p class="fragment">Ease cognitive load</p>
+    <aside class="notes">
+      - Kernighan: "Everyone knows that debugging is twice as hard as writing a
+        program in the first place. So if you're as clever as you can be when you
+        write it, how will you ever debug it?"<br />
+      - Who here can focus on a single problem for days or weeks? Of those,
+        how many work on a small team?
+    </aside>
+  </section>
+  
+  <section>
+    <h2>Side-effects kill</h2>
+      <p>A change in feature X also changes feature Y</p>
+      <p class="fragment">Second order effect: fear, uncertainty, and doubt</p>
+      <p class="fragment">Response: slather on that process!</p>
+  
+    <aside class="notes">
+    <ul>
+      <li>Any change counts -- the introduction of a feature, change in workflow
+        or requirements, validation or data formatting changes, etc.</li>
+      <li>First order effects include performance, semantic changes in data, or
+        just plain breakage</li>
+    </ul>
+    </aside>
+  </section>
+  
 </section>
 
 <section>
-  <h2>Where we started: Revision Assistant</h2>
-  <img class="fragment" data-fragment-index="2" 
+  <h2>Revision Assistant</h2>
+  <img class="fragment" data-fragment-index="1" 
     src="lib/images/ra_student_writing.png" align="right" style="border: none; box-shadow: none"
     width="400" height="297" alt="Revision Assistant student writing interface" />
-  <p class="fragment" data-fragment-index="1">Pittsburgh company! (previously: Lightside Labs)</p>
-  <p class="fragment" data-fragment-index="1">Use machine learning to help students write better</p>
-  <p class="fragment" data-fragment-index="2">Focus on drafting process rather than scoring against standards</p>
+  <p>Pittsburgh company! (previously: Lightside Labs)</p>
+  <p>Use machine learning to help students write better</p>
+  <p class="fragment" data-fragment-index="1">Focus on drafting process</p>
   <aside class="notes">
     - provide feedback (comments and scoring) to students during the drafting process <br />
-    - acquired by Turnitin in October 2014<
-  </aside>
-</section>
-
-
-<section>
-  <h2>Where we started: architecture</h2>
-  (TODO image here)
-  <aside class="notes">
-    - Single app taking all requests; one per EC2 <br />
-    - Single worker taking all async jobs; one per EC2 <br />
-    - Deployment via Ansible
+    - acquired by Turnitin in October 2014 <br />
+    - used this year in ~80 schools by ~18,000 students 
   </aside>
 </section>
 
 <section>
-  <h2>Where we are now: architecture</h2>
-  (TODO image here)
+  <h2>Where we started</h2>
+  <p>Single app taking all requests; one per EC2 </p>
+  <p>Single worker taking all async jobs; two-ish per EC2 </p>
+  <p>Deployment via Ansible</p>
   <aside class="notes">
-    - Move app and worker into Docker containers, still serve a lot of traffic<br />
-    - Created separate part of the app, served by microservices and their own tables<br />
-    - Right now re-architecting the workers to scale
   </aside>
 </section>
 
 <section>
-  <h2>Where we want to be: architecture</h2>
-  (TODO image here)
+  <h2>Where we are now</h2>
+  <p>App and worker =&gt; Docker containers</p>
+  <p>...still serve a lot of traffic</p>
+  <p class="fragment">Created associated app served by separate microservices and tables</p>
+  <p class="fragment">Re-architecting the workers to scale</p>
   <aside class="notes">
-    - Pulling more pieces of the single app out into services <br />
-    - Merge duplicate data (users, groups, assignments) <br />
-    - Autoscaling at microservice level
+  </aside>
+</section>
+
+<section>
+  <img src="lib/images/lots_of_services.png" alt="So many services!"
+    style="border: none; box-shadow: none" />
+</section>
+
+<section>
+  <h2>Where we want to be</h2>
+  <p>More pieces of the single app out into services </p>
+  <p>Merge duplicated data</p>
+  <p>Autoscale individual services</p>
+  <aside class="notes">
+    <p>Duplicated?! Horrors! We could have used the single app for everything
+      but we wanted to ease into developing and managing services.
+  </aside>
+</section>
+
+<section>
+  <div>
+    <a href="https://twitter.com/testobsessed/status/595949729898319873">
+      <img src="lib/images/testobsessed_prefer_recovery.png" width="604" height="375"
+        alt="I prefer: Recovery over perfection..." />
+    </a>
+  </div>
+  <aside class="notes">
+    DRINK
   </aside>
 </section>
 
 <section>
   <h2>Why not?</h2>
   <p>Operating a single app is way easier</p>
-  <p>Easier to propagate patterns within single codebase</p>
-  <p>Everything is in one place...
-  <p>...code and admin tools (Django)</p>
+  <p class="fragment">Easier to propagate patterns within single codebase</p>
+  <p class="fragment">Everything is in one place... code and admin tools (Django)</p>
+  <p class="fragment">One Approved Way to do things</p>
   <aside class="notes">
     - why would you NOT want to do this? <br />
-    - "NBD, I'll distribute my code..." now you're dealing with packagingh hell...
+    - "NBD, I'll distribute my code..." now you're dealing with packaging hell...
   </aside>
 </section>
 
 <section>
   <h2>Why not?</h2>
   <p>Reaching into another table is easy</p>
-  <p>No network call boundaries (latency)</p>
+  <p class="fragment">No network call boundaries (latency)</p>
   <aside class="notes">
     - reaching: for a join, or a single piece of data, lookup, or...
+  </aside>
+</section>
+
+<section>
+  <img src="lib/images/thinking_chimp.jpg" alt="Thinking chimp" />
+  <aside class="notes">
+    ...honestly, that all sounds pretty good
   </aside>
 </section>
 
@@ -175,7 +268,7 @@
     - Create subrant about side-effects? <br />
     - Experiment with framework, language, database, design patterns... <br />
     - It's easier (less expensive) to scale a service with a 64 MB footprint
-    than a larger server with a 256 MB footprint
+    than a larger one with a 256 MB footprint where you only care about a couple functions
   </aside>
 </section>
 
@@ -201,31 +294,11 @@
 </section>
 
 <section>
-  <h2>Prefer guardrails over recipes</h2>
-  <p>Provide constraints in areas of uncertainty</p>
-  <p class="fragment">...to enable freedom to experiment in others</p>
-  <aside class="notes">
-    - "Uncertainty" - where your team (or teams in general) are prone
-    to get things wrong<br />
-    - 
-  </aside>
+  <h2>Constrain areas of uncertainty</h2>
+  <p>Help where you're prone to get things wrong</p>
+  <p class="fragment">...and enable freedom to experiment in others</p>
 </section>
 
-<!--
-@@@ this might go away, control vs constraint seems like a distinction without
-a difference
-- Lots of choices about what to control and what to constrain
-    - Create a constraint (the what) to incentivize the behavior you want to
-      see (or avoid) and let teams find the best way to do it
-    - Create a control if you want to specify both the what and the how
-    - Constraint: Bezos telling Amazon that services must not access other
-      services' data directly. (Yegge post) This frees up the service to
-      use whatever datastore it wants - NoSQL, key/value, relational,
-      filesystem.
-    - Control: You must use version x of database y. All tables must be fully
-      normalized and all references must be backed by foreign keys. (Or you
-      must use language x with framework y version z)
--->
 
 <section>
   <h2>What are the moving parts?</h2>
@@ -263,7 +336,6 @@ a difference
   <h2>ECS basics: Cluster</h2>
   <p>EC2 instances providing compute pool of compute</p>
   <p>Can be in single AZ or spread across</p>
-  <p>ECS scheduler will run tasks in different AZs if possible</p>
   <aside class="notes">
   </aside>
 </section>
@@ -275,17 +347,17 @@ a difference
 
 <section>
   <h2>ECS basics: Task definition</h2>
-  <p class="fragment">Immutable metadata to run container</p>
+  <p>Immutable metadata to run container</p>
   <div class="fragment">
     <p>- Resource constraints</p>
-    <p>- Environment (12 Factor: #3)</p>
+    <p>- Environment</p>
     <p>- Docker image tag</p>
     <p>- Linked containers</p>
-    <p class="fragment">- ...stuff you use with <span class="code">docker run...</span></p>
+    <p class="fragment">- ...generally, arguments to <span class="code">docker run...</span></p>
   </div>
   <aside class="notes">
     - Memory/CPU constraints (memory over will kill container, CPU is hint) <br />
-    - Configuration via environment variables <br />
+    - Configuration via environment variables  (12 Factor: #3)<br />
     - Docker image name (registry + path + tag) <br />
     - Linked containers are ones that always need to run together
   </aside>
@@ -311,22 +383,36 @@ a difference
 </section>
 
 <section>
+  <section>
+    <h2>How we use it</h2>
+    <p>Single region, per-AZ clusters</p>
+    <p><span class="code">production-app-1a</span>,
+      <span class="code">production-app-1c</span>, ...</p>
+    <p>More overhead: duplicate deploys</p>
+    <p>Bonus: switch off an entire AZ</p>
+  </section>
+  <section>
+    <img src="lib/images/aws_regions.png" width="907" height="663"
+      alt="AWS Regions" style="border: none; box-shadow: none" />
+  </section>
+</section>
+
+<section>
+  <img src="lib/images/different_azs.png" width="907" height="663"
+    alt="Different AZs" style="border: none; box-shadow: none" />
+</section>
+
+<section>
   <h2>ECS: What's missing?</h2>
-  <p>Deployment and configuration: OK</p>
+  <p>Deployment and configuration: OK to Amazing</p>
   <p>Routing and load balancing: So-so</p>
   <p>Monitoring: Meh</p>
-  <p>Logging: So-so</p>
+  <p>Logging: Meh</p>
   <p>Recovery: OK</p>
   <aside class="notes">
     This is how AWS works: they build something really basic with a couple
-    hooks into the ecosystem, then they improve it over time as well as 
+    hooks into the ecosystem, then they improve it over time as well as
     improve the hooks.
-  </aside>
-</section>
-<section>
-  <img src="lib/images/deployment_moving_parts.png" width="907" height="663"
-    alt="Deployment" style="border: none; box-shadow: none" />
-  <aside class="notes">
   </aside>
 </section>
 
@@ -365,7 +451,7 @@ a difference
     <p>All containers on one host</p>
     <p>Includes datastores</p>
     <p>Front-end deployed to S3</p>
-    <p>Extra containers for router, docs<sup>*</sup>, mail</p>
+    <p>Extra containers for router, docs, mail</p>
   </div>
   <aside class="notes">
   </aside>
@@ -375,12 +461,27 @@ a difference
   <h2>"Color"?</h2>
   <p>Deployable with slack</p>
   <p>Specify different branches for different services</p>
-  <p>...against Factor 10, but: "similar as possible"</p>
   <p>Constrain at Docker, assume other differences minimized for these purposes</p>
   <aside class="notes">
     - thank you lightbot! <br />
+    -...against Factor 10, but: "similar as possible" <br />
     - 10. Dev/prod parity: Keep development, staging, and production as similar
     as possible
+  </aside>
+</section>
+
+<section>
+  <h2>Deployment</h2>
+  <p>Local development can be in container, or not</p>
+  <p>CI/CD uses Codeship: builds and tests in containers</p>
+  <p>We currently do not use that same container to deploy</p>
+  <p>Does it matter?</p>
+</section>
+
+<section>
+  <img src="lib/images/deployment_moving_parts.png" width="907" height="663"
+    alt="Deployment" style="border: none; box-shadow: none" />
+  <aside class="notes">
   </aside>
 </section>
 
@@ -393,6 +494,7 @@ a difference
   <img src="lib/images/type_0_elb.png" width="907" height="663"
     alt="ELB" style="border: none; box-shadow: none" />
   <aside class="notes">
+  - ELB is how the world reaches our app
   </aside>
 </section>
 
@@ -400,6 +502,9 @@ a difference
   <img src="lib/images/type_1_router.png" width="907" height="663"
     alt="router" style="border: none; box-shadow: none" />
   <aside class="notes">
+  - ELB sends all traffic to routers; routers know what URLs services respond
+  to and where they are <br />
+  - Routers also have embedded Lua so they can "do stuff"
   </aside>
 </section>
 
@@ -432,23 +537,69 @@ a difference
 </section>
 
 <section>
-  <h2></h2>
+  <h2>External services</h2>
+  <p>Postgres, Redis, S3, Simple Queue Service, Simple Notification Service...</p>
+  <p>All configured through environment and URL</p>
+  <p>Logs collected on per-host container and forwarded to Loggly</p>
+</section>
+
+<section>
+  <img src="lib/images/loggly.png" width="907" height="663"
+    alt="loggly" style="border: none; box-shadow: none" />
+</section>
+
+<section>
+  <h2>Alerting</h2>
+  <p>Two inputs: Loggly and NewRelic</p>
+  <p>Loggly: watch log entries for patterns</p>
+  <p>NewRelic: watch performance and exceptions for patterns</p>
+  <p>Both go to Slack (maybe elsewhere in the future?)</p>
+</section>
+
+<section>
+  <h2>Service discovery: events</h2>
+  <p>Events: coming up and going down</p>
+  <p>Docker knows about those!</p>
+  <p>Registrator picks them up and publishes name + address + port...</p>
   <aside class="notes">
   </aside>
 </section>
 
 <section>
-  <h2></h2>
+  <h2>Service discovery: propagation</h2>
+  <p>...to Consul. Distributed k/v store and service registry</p>
+  <p>Consul Template listens for Consul changes...</p>
+
+  <p>...and rewrites nginx config with contents, then gives it a <span class="code">HUP</span></p>
   <aside class="notes">
   </aside>
 </section>
 
 <section>
-  <h2></h2>
+  <h2>Routing: central vs distributed</h2>
+  <p>Two flavors of nginx:</p>
+  <p>1. Central: in front of the application routing from the internet</p>
+  <p>2. Distributed: on every host, acting as a client-side load balancer</p>
   <aside class="notes">
+    - first also has lua to do things like verify JWTs, resolve auth tokens to
+    cached data, etc.
   </aside>
 </section>
 
+<section>
+  <h2>Which is better?</h2>
+  <p>"It depends"</p>
+  <p>Central is easier to monitor and manage, but SPOF</p>
+  <p>Distributed spreads out risk and load, but harder to manage and monitor</p>
+</section>
+
+<section>
+  <h2>AWS recommends</h2>
+  <p>Cluster of EC2 instances across AZs</p>
+  <p>ECS will spread containers across AZs</p>
+  <p>ELB per service (lots of services, lots of ELBs)</p>
+  <p>Ensure datastores are Multi-AZ</p>
+</section>
 
 <section>
   <h2>Sidebar: Missing factor</h2>
@@ -477,12 +628,18 @@ a difference
 </section>
 
 <section>
-  <h2>Solve that problem instead</h2>
-
-  <p>Control the format (swagger) and API (<span class="code">/service/docs</span>)</p>
-  <p>Tool to collect and merge (<span class="code">spider-doc</span>)</p>
-  <p>Everything is a container</p>
-  <p>Control allows leverage</p>
+  <h2>Solve THAT problem</h2>
+  <img class="fragment" data-fragment-index="2" 
+    src="lib/images/swagger.png" align="right" style="border: none; box-shadow: none"
+    width="500" height="420" alt="Swagger UI representation" />
+  <div class="fragment" data-fragment-index="1">
+    <p>Control the format and API</p>
+    <p>Tool to collect and merge</p>
+  </div>
+  <div class="fragment" data-fragment-index="2">
+    <p>Everything is a container</p>
+    <p>Control allows leverage</p>
+  </div>
   <aside class="notes">
     - The control we're exerting is allowing other parts of the system to
     leverage our work *without knowing what they want ahead of time* <br />
@@ -490,229 +647,88 @@ a difference
   </aside>
 </section>
 
-
-
-
-<!-- OLD STUFF -->
-<section>
-  <h2>What are we here for?</h2>
-    <p>What are they? (assumed)</p>
-    <p>How do we use them?</p>
-    <p>What do they offer?</p>
-    <p>What should you constrain?</p>
-
-  <aside class="notes">
-    - Ideas and lessons from implementing and reading <br />
-    - Mix of cultural, technical, and architectural <br />
-    - Not a tutorial about AWS, Docker, Python...(though we'll have some things
-    about all of those)
-  </aside>
-</section>
-
-<section>
-  <h2>My biases and context</h2>
-    <p>Small teams, small-ish companies</p>
-  <aside class="notes">
-  - Biases in the sense that they're things you focus on, sometimes to the
-  exlusion of more useful/illuminating things <br />
-  - Probably anti-big-company practices than small for small's sake <br />
-  - ...Netflix has ~1200 engineers :-)
-  </aside>
-</section>
-
-<section>
-  <h2>My biases and context</h2>
-    <p>Deeply skeptical of magic</p>
-    <p class="fragment">Relational database pro, ORM con</p>
-  <aside class="notes">
-    - Tricky: one person's magic is another's efficiency <br />
-    - ...ORMs are a form of magic :-)
-  </aside>
-</section>
-
-<section>
-  <h2>My biases and context</h2>
-    <p>Kernighan on debugging applies to more than code</p>
-    <p class="fragment">Ease cognitive load</p>
-  <aside class="notes">
-    - Kernighan: "Everyone knows that debugging is twice as hard as writing a
-      program in the first place. So if you're as clever as you can be when you
-      write it, how will you ever debug it?"<br />
-    - Who here can focus on a single problem for days or weeks? Of those,
-      how many work on a small team?
-  </aside>
-</section>
-
-<section>
-  <h2>Side-effects kill</h2>
-    <p>A change in feature X also changes feature Y</p>
-    <p class="fragment">Second order effect: fear, uncertainty, and doubt</p>
-    <p class="fragment">Response: slather on that process!</p>
-
-  <aside class="notes">
-  <ul>
-    <li>Any change counts -- the introduction of a feature, change in workflow
-      or requirements, validation or data formatting changes, etc.</li>
-    <li>First order effects include performance, semantic changes in data, or
-      just plain breakage</li>
-  </ul>
-  </aside>
-</section>
-
 <section>
   <h2>Constraints over control</h2>
   <p>What does that even mean?</p>
-  <p class="fragment">Constraints: define the boundaries of a thing
-    and let whatever happens in the boundary happen</p>
+  <p class="fragment">Constraints: define the boundaries of a thing, hands off within</p>
   <p class="fragment">Control: define both <b>what</b> a thing must do
     and <b>how</b> it must do its job</p>
 
   <aside class="notes">
+    - Constraint: Bezos telling Amazon that services must not access other
+    services' data directly. Frees up service to use whatever it wants. <br />
+    - Control: You must use version x of database y. All tables must be fully
+    normalized and all references must be backed by foreign keys.
   </aside>
 </section>
 
 <section>
-  <blockquote class="twitter-tweet" data-lang="en"><p lang="en" dir="ltr">
-      I prefer:
-      <br>- Recovery over Perfection
-      <br>- Predictability over Commitment
-      <br>- Safety Nets over Change Control
-      <br>- Collaboration over Handoffs
-    </p>
-    &mdash; ElisabethHendrickson (@testobsessed)
-    <a href="https://twitter.com/testobsessed/status/595949729898319873">May 6, 2015</a></blockquote>
+  <h2>What you know</h2>
+  <p>Control illusory if not at right level</p>
+  <p class="fragment">You'll probably get it wrong with something new</p>
+  <p class="fragment">Developers: control coding standard, module layout, etc.</p>
+  <p class="fragment">What problem are you trying to solve?</p>
+</section>
 
+<section>
+  <h2>Example: ORMs</h2>
+  <p>Why do you use them?</p>
+  <p>Small service: few entities, few relationships</p>
+  <p>Are you really going to switch databases?</p>
+  <p>Shouldn't you know SQL?</p>
+</section>
+
+<section>
+  <h2>Constrain data access</h2>
+  <p>Get away from integrating at data level - they live forever</p>
+  <p>Wrapping API around queries means you can control arbitrary access</p>
+  <p>Fewer connections, less to keep in your head</p>
+</section>
+
+<section>
+  <h2>Few data lessons</h2>
+  <p>Everything is relational (except caches)</p>
+  <p>...with some JSONB tables</p>
+  <p class="fragment">We are using a single database... for now</p>
   <aside class="notes">
-    - I really like these "Prefer x over y" lists that (I think) the Agile Manifesto popularized <br />
-    - ...and we'll be revisiting trade-offs once or twice...
+    Seams of services and their data inform how we can scale out the database
   </aside>
 </section>
 
 <section>
-  <h2>Straw man?</h2>
-  <p>"But Chris, you just made those definitions up!"</p>
-  <p>Example: HTTP</p>
-  <p>Example: logging</p>
-  <p>Example: migrations</p>
-  <p>Example: code layout</p>
-  <p>Example: testing</p>
-  <aside class="notes">
-    <ul>
-      <li>HTTP: something that (a) answers HTTP (b) with a data format (JSON) as
-        (c) structured as JSON API so that (d) a particular library can handle
-        generically -- at what point does that change from constraints to control?</li>
-      <li>Logging: should you say how logging happens, or should you define the
-        set of data you need to include because of the surrounding
-        infrastructure and let code decide how it wants to do that?</li>
-      <li>Migrations: The actual need: every time this service starts it should
-        ensure it's running against the right schema</li>
-      <li>Layout: Docker and config as ENV vs "implement a main method that
-        takes args x, y, and z and references properties file located
-        in /etc/myapp.properties"</li>
-      <li>Testing: Execute some command; if it exits with 0 tests pass;
-        expect to run `coveralls` to send code coverage</li>
-    </ul>
-  </aside>
+  <h2>Few data lessons</h2>
+  <p>Services cannot peek into other services tables...</p>
+  <p>...except for reporting (still thinking about this)</p>
+  <p class="fragment">Data affinity for read-only.</p>
 </section>
 
 <section>
-  <h2>You control what you know</h2>
-
-  
+  <h2>Emergent simplicity</h2>
+  <p>"You get these emergent simplicities when the thing starts to take shape..." (Dan North)</p>
+  <p>As you pull small systems out of larger systems, keep your eyes
+    open for commonalities or things to eliminate.</p>
 </section>
 
 <section>
-  <h2>Guardrails, not blinders</h2>
-
-  - Constraints in areas where you know your team (or teams in general) are
-  prone to get things wrong. Are microservices the only way to get isolation,
-  bounded contexts, independent deployability, no side-effects, etc. Nope. But
-  many (all?) of the other ways require a discipline I've seen few teams exhibit.
-
+  <h2>Left to do</h2>
+  <p>Client per backend service</p>
+  <p>Testing service-to-service interactions</p>
+  <p>Monitoring improvements</p>
+  <p>Move to AWS blessed architecture?</p>
 </section>
 
+<!--
 <section>
   <iframe width="420" height="315"
     src="https://www.youtube.com/embed/nuYxp7-Au4E?rel=0" frameborder="0"
     allowfullscreen></iframe>
 </section>
-
-<!--
-Control:
-
-- Illusory if you're not doing it at the right level. Worst kind is when
-you *think* you have control but you don't actually.
-
-Data
-
-- Constraint: Bezos telling Amazon that services must not access other
-services' data directly. (Yegge post) This frees up the service to
-use whatever datastore it wants - NoSQL, key/value, relational, filesystem.
-
-- Control: You must use version x of database y. All tables must be fully
-normalized and all references must be backed by foreign keys.
-
-More
-
-Useful constraints for accessing data
-
-- Gets you away from integrating at the data level (...because your data live
-  forever, and if everyone can reach in and muck with tables controls your
-  ability to change by increasing the cost due to unforeseen side-effects)
-
-- Naturally restrict the way your data are accessed - arbitrary queries can
-  kill your DB (yes, even your NoSQL DB), and wrapping an API around it goes a
-  long way to ensuring that doesn't happen. Because your API will tend toward
-  smaller since maintaining a large API is so painful. (But you'll probably do
-  it anyway.)
-
-- Restricting the access to data also has side-effect of lowering the amount
-  you have to keep in your head (easier maintenance).
-
-
-Ideas:
-
-- Our system: everything is relational.
-- We are using a single database... right now.
-- Services cannot peek into other services tables...
-- ...except for reporting (still thinking about this)
-- Also: data affinity for read-only.
 -->
 
 <section>
-  <h2></h2>
-  <aside class="notes">
-  </aside>
-</section>
-
-<section>
-  <h2></h2>
-  <aside class="notes">
-  </aside>
-</section>
-
-<section>
-  <h2></h2>
-  <aside class="notes">
-  </aside>
-</section>
-
-<section>
-  <h2></h2>
-  <aside class="notes">
-  </aside>
-</section>
-
-<section>
-  <h2></h2>
-  <aside class="notes">
-  </aside>
-</section>
-
-<section>
-  <h2></h2>
-  <aside class="notes">
-  </aside>
+  <img
+    src="lib/images/rosa_surveys_ocean.jpg" style="border: none; box-shadow: none"
+    width="800" height="600" alt="Rosa surveys the ocean" />
 </section>
 
 <section>
@@ -790,7 +806,6 @@ Ideas:
 
 <script src="lib/js/head.min.js"></script>
 <script src="js/reveal.js"></script>
-<script async src="//platform.twitter.com/widgets.js" charset="utf-8"></script>
 
 <script>
   // More info https://github.com/hakimel/reveal.js#configuration
