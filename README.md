@@ -1,585 +1,1134 @@
-# Flow:
-
-## Extra stuff
-
-- Context + biases (self indulgent?)
-- Describe the app (necessary?)
-- What parts need to be replaceable?
-    - Version control
-    - Language
-    - Database
-    - Storage
-    - Cache
-    - Frameworks
-    - CI/CD pipeline
-    - Deployment granularity
-    - Testing
-    - Logging
-    - Monitoring
-
-## Actual
-
-- What are we going to do here?
-    - Talk about the moving parts behind microservices
-    - Why are we using microservices, and what are our plans?
-    - How do they help and hinder?
-
-- Initial questions
-    - Back-end focused, not going to dig into front-end stuff in any
-      of this (build, deploy, etc)
-    - How many people have used Docker? In production?
-    - How many people are using microservices? Planning to?
-
-- Where we started (graphically)
-    - Single app taking all requests; one per EC2
-    - Single worker taking all async jobs; one per EC2
-- Where are we now (graphically)
-    - Move app and worker into Docker containers
-    - Created separate part of the app, served by microservices
-      and their own tables
-- Where we want to be (graphically)
-    - Pulling more pieces of the single app out into services
-
-- Why would we not want to do this?
-    - Operating a single app is way easier
-    - Easier to propagate patterns within single codebase
-    - Reaching into another table for a join, or a single piece of data, is easy
-    - No network call boundaries (latency)
-    - Everything is in one place, both code and things like admin tools (Django)
-- Why would we want to do this?
-    - Independence (concurrent projects)
-    - Keep a thing in your head
-    - Speed (small things easier to test in full)
-    - Disentangle via forced separation
-    - Make side-effects explicit
-    - Small vectors for experimenting (framework, language, database,
-      design patterns)
-    - Scale at more granular level
-    - Conway's law not as big a deal for Turnitin Pittsburgh (since we're so
-      small); sidenote, "Team per service" is bunk, and sometimes I wonder if
-      that stops people from trying things
-- Well that's all great, but I can do that now!
-    - Are microservices the only way to get these things? Nope. But many (all?)
-      of the other ways require a discipline I've seen few teams exhibit.
-    - Provide constraints in areas where you know your team (or teams in
-      general) are prone to get things wrong...
-    - ...and provide freedom to experiment with new things
-
-@@@ this might go away, control vs constraint seems like a distinction without
-a difference
-- Lots of choices about what to control and what to constrain
-    - Create a constraint (the what) to incentivize the behavior you want to
-      see (or avoid) and let teams find the best way to do it
-    - Create a control if you want to specify both the what and the how
-    - Constraint: Bezos telling Amazon that services must not access other
-      services' data directly. (Yegge post) This frees up the service to
-      use whatever datastore it wants - NoSQL, key/value, relational,
-      filesystem.
-    - Control: You must use version x of database y. All tables must be fully
-      normalized and all references must be backed by foreign keys. (Or you
-      must use language x with framework y version z)
-
-
-- What are the moving parts? (list for now)
-    - See also Casey MVP presentation
-    - Deployment and configuration: how do I get it out there and working?
-    - Recovery from failure: how do I replace it when it craps out?
-    - Routing and load balancing: how does my service send messages to other services?
-    - Monitoring: how do I know how my service is performing?
-    - Logging: how do I get log messages from my service?
-
-
-- These echo the 12 Factor app
-    - Smart people have already thought about this design: 12factor.net
-    - You really need to internalize this document and goals.
-    - Focuses:
-    3. Config: Store config in the environment
-    4. Backing services: Treat backing services as attached resources
-    10. Dev/prod parity: Keep development, staging, and production as similar as possible
-    11. Logs: Treat logs as event streams
-
-@@@All, but probbly won't discuss or mention others
-    1. Codebase: One codebase tracked in revision control, many deploys
-    2. Dependencies: Explicitly declare and isolate dependencies
-    3. Config: Store config in the environment
-    4. Backing services: Treat backing services as attached resources
-    5. Build, release, run: Strictly separate build and run stages
-    6. Processes: Execute the app as one or more stateless processes
-    7. Port binding: Export services via port binding
-    8. Concurrency: Scale out via the process model
-    9. Disposability: Maximize robustness with fast startup and graceful shutdown
-    10. Dev/prod parity: Keep development, staging, and production as similar as possible
-    11. Logs: Treat logs as event streams
-    12. Admin processes: Run admin/management tasks as one-off processes
-
-
-- How does ECS deployment work?
-    - Define a named "cluster" of EC2 instances onto which you'll deploy
-      containers. This is your available compute.
-    - "Task definition" tells ECS how to run a container:
-        - Memory/CPU constraints (memory over will kill container, CPU is hint)
-        - Configuration via environment variables
-        - Docker image name (registry + path + tag)
-    - Task definition is immutable -- once you publish you cannot change
-    - Two ways to run containers:
-    - 1. Run task with definition + number of containers
-    - 2. Service with definition and stable number of containers; "deploy"
-         means update the definition.
-    - Difference: once run task finishes it's done; service maintains the
-      container count and on update does rolling deployment
-    - Automate this with rake: create task definition as JSON from templates,
-      publish to ECS with API calls
-
-
-- How do we use ECS (and other) deployment when developing a feature?
-    - feature branch: work work work, push
-    - slack: make me a color environment
-    - slack: run end-to-end-tests
-    - slack: make me some classes
-    - test test test
-    - :thumbsup:
-    - PR to staging, merge => deploys
-    - test test test (maybe)
-    - PR to production, merge => deploys
-    - Slightly different for front-end and services
-
-- Sidebar - One factor that's missing: documentation
-    - How would you implement?
-    - Your first thought may be to have one document with all the API (control)
-        - effect: nobody will remember to update
-    - What do you *really* want?
-        - one place to *read*, which is different than one place to *write*
-    - You're controlling at the wrong level, the one you're comfortable with
-        - need to be comfortable with giving this up for a while while you get
-          comfortable with this system
-    - Solve *that* problem instead:
-            - control the format (swagger)
-            - control API for collecting (`/service/docs`)
-            - create tool to collect and merge (`spider-doc`)
-            - make it part of the same system as everything else (everything is a container)
-    - The control we're exerting is allowing other parts of the system to
-      leverage our work *without knowing what they want ahead of time*
-        - hey, that sounds like good design!
-
-
-- Types of environments; all use Docker:
-    - Local + Color
-        - Local: deployed via rake; Color: deployed via slack
-        - all containers on one host
-        - front-end deployed to S3
-        - extra containers for router, API docs (more later), mail catcher
-    - Production + Staging
-        - AWS + ECS
-        - Databases managed by AWS (RDS, Elasticache)
-        - ELB talks to nginx router/load-balancer that does some other work with Lua
-        - Every host has a client-side router/load-balancer
-        - Every host has a logging container
-        - Consul watches for Docker events and updates nginx
-    - Staging also has:
-        - End-to-end API testing container
-
-- Color environment
-    - Entire system on a single host, datastores and all
-    - Deployable with slack, and you can specify different branches for
-      different apps to be deployed
-    - This goes against Factor 10, but that "as possible" gives us some wiggle
-      room :-)
-    - We're deciding to constrain at the Docker level and are assuming the
-      other constraints (like configuration) minimize other differences
-
-- Types of services, build up the image one at a time:
-    - 0. ELB
-        - Only thing that the outside world talks to, besides static assets on
-          S3
-    - Routers
-        - Only service that talks to the ELB, balanced across AZs
-        - Internet-facing: Gateway for internet to talk to edge services
-        - Via Consul/Consul Template gets docker events updating services
-        - Has Lua to allow some logic (Request ID, Identity lookup, JWT unpacking)
-    - "Edge"
-        - What the front-end talks to (through the router)
-        - Deals with authz
-        - May talk to multiple persistence services
-    - "Persistence" (back-back-end?)
-        - Front-end CANNOT talk to it
-        - Does not do authen/authz (though may record)
-        - Talks to datastore directly
-    - Datastore
-        - Postgres and S3 are long-term storage, and should be the only places
-          we're storing state
-        - Redis is used for cache and queue; future may use SQS for queues
-          instead
-        - Configured with environment variables containing connnection string
-    - Worker (process async jobs)
-        - Pulls jobs off Redis/SQS
-        - May talk to datastore but through shared persistence code
-        - Single codebase (and Dockerfile) for worker/server combo
-    - Others on dev/staging:
-        - docs
-        - testing
-        - data generation
-        - load testing
-    - Helpers (database, cache, POS tagger, log)
-
-- What does a typical feature look like?
-    - Admin feature to remove a student from a school and undo that removal
-    - Front- and back-end developers get together and decide on an API
-    - Front-end can develop independently with a mock-backend
-    - Back-end needs to implement feature in edge service rac-admin (to answer the front-end)
-    - Back-end also needs to implement features in persistence service to
-      cascade delete a school membership ending to all its contained classes,
-      as well as undo that
-
-- Implementation typically goes bottom-up at a fairly granular level:
-     - Persistence first to cascade delete; can PR and deploy
-     - Edge next to trigger cascade delete; can deploy feature branch with
-       front-end feature branch to color environment to test
-
-- Rules and guides
-    - You must never break backward compatibility. There's some leeway when a
-      service is still new and getting its legs, and there's only one thing
-      depending on it.
-    - Forcing absolute zero peeking into other services' databases can be
-      difficult, particularly for reporting. You can get around some of these
-      things with denormalization but then you set yourself up for data drift.
-      So we have the idea of "data affinity" -- a service can join into another
-      service's tables for read access, and only in well-marked areas, with the
-      understanding that if things change in the future we'll work to remove
-      those. It's *never* supposed to replace service calls for speed or simplicity.
-
-- Left to do:
-    - Per-persistence service clients. Persistence services will only be called
-      by other services, and those services are ours so we control both ends of
-      the conversation. Why not make a client that includes: objects to fill and
-      validate (and then serialize) instead of building up raw HTTP payloads?
-      methods to invoke instead of URL paths to type in? different HTTP results
-      (status, errors) being represented as exceptions/objects instead of forcing all
-      the service users to re-invent. (Adrian Cockroft mentions this in a
-      number of his presentations.)
-    - Testing. We have an end-to-end API testing service that works pretty
-      well. But we haven't implemented anything like Pact/Pacto, or consumer
-      driven testing.
-    - Feature flags. (@@DOES it belong here?) May seem like it doesn't belong
-      here, but it can help with decoupling and getting features moving through
-      the system faster.
-
-
-
-# Ideas
-
-Possible themes:
-
-- What level of control do you need?
-
-- Constraints and their side-effects (Conway's law, blah blah)
-
-- Entire product development timeline, how do you affect it?
-
-(Control, Constraints, and Collaboration - probably too cutesy)
-
-## Context and caveats
-
-Open about context
-
-https://twitter.com/mipsytipsy/status/732307148655362048
-
-    "i wish that more people who give {technical,cultural} talks would spend time
-    describing the context in which a solution worked for them."
-    -- @mipsytipsy (Charity Majors)
-
-Trade-offs (kinda framed as constraints):
-
-https://twitter.com/testobsessed/status/595949729898319873
-
-    I prefer:
-    - Recovery over Perfection
-    - Predictability over Commitment
-    - Safety Nets over Change Control
-    - Collaboration over Handoffs
-    -- @testobsessed (Elisabeth Hendrickson)
-
-Ideas:
-
-- Constraints are good, even if artificial
-
-- Team structure and health informs project
-
-- Small things are easier to manage people and technology wise
-
-- "Team per service" is bunk
-
-- Control is illusory... except where it's not
-
-
-- Avoid binding with control
-
-    - Example - what you want: one document with all the API
-        - effect: nobody will remember to update
-        - what do you *really* want?
-        - one place to read
-        - solve *that* problem instead:
-            - control the format (swagger)
-            - control API for collecting (`/service/docs`)
-            - create tool to collect and merge (`spider-doc`)
-        - the control we're exerting is allowing other parts of the system to
-          leverage our work *without knowing what they want ahead of time*
-        - hey, that sounds like good design!
-
-- Similar things:
-
-    - Where is your healthcheck url?
-    - What's your agreed-upon name for certain env? (`DATABASE_URL` is a common one)
-    - What are common names for groups of 'things'? routes, models, queries, etc.
-    - How do I build your service?
-    - How do I run tests for your service?
-
-- Binding with frameworks
-
-    - IMO: Frameworks generally don't do a good job of balancing cognitive load
-      what they provide (to lessen code you need to write) vs number of layers
-      you have to know about.
-        - Example: ORMs (I know, I know) - Relating models, writing queries
-        - Example: validation
-    - Different measure than how little code: how much do I need to understand
-      to read this code? How many different files do I need to read?
-    - Example: What are your framework's assumptions about things not in its
-      direct control? Is it lowest-common-denominator (like most frameworks
-      relating to databases)?
-        - What do these assumptions remove from you permanently, and what
-          do they remove that can only be regained with a good amount of
-          effort?
-    - This is a trade-off that can be worth it! There is no silver bullet or
-      one answer.
-    - In fact, it's a constraint -- they're betting that you won't need the
-      control of a database. Or that you should have a model for every table.
-    - But when there's friction it's really bad
-    - Example: Is controlling your transactions really that gross? How many
-      abstractions have you dealt with in your career to deal with this?
-      (Autocommit? Hibernate open session in view?)
-        - We have been trained to get rid of DRY at all costs -- put all the
-          transaction handling stuff over HERE so I don't have to deal with it
-          over THERE -- but the cost at separating them is one we rarely acknowledge
-    - How little can you get away with?
-    - This will change over time, and that's okay
-    - Normal process of expansion and contraction.
-    - When you learn a new domain you read lots of maybe-useful stuff with the
-      goal of learning what the words and references mean. And only then do you
-      know enough to be able to pick and choose among the things that are
-      important.
-
-- What do you want to optimize for?
-
-    - speed
-    - independence
-
-- Control things that allow your team to work independently:
-
-    - documentation (woo swagger)
-    - client library per internal service
-    - logging context
-    - Backwards compatibility
-
-- Without automation this is not possible
-
-- AWS high points (for us)
-    - Terraform
-    - All the things (S3, SQS, SES, RDS, ElastiCache, EC2, ECS, ELB, VPC, ASG, security groups, Lambda)
-    - Mature and multi-language libraries
-    - IAM enables granular permissions on individual services and actions
-      (e.g., the only thing the deployment queue process invoked by CI/CD can
-      do is add messages to a particular queue)
-    - RDS (managed database, but it's still just postgres)
-
-- The technical things you need:
-    - Continuous integration
-    - Central logging
-    - Transaction tracing
-    - Per-service monitoring
-    - Service discovery and routing
-
-- The technical things you'd like:
-    - Continuous deployment
-    - Per-service clients
-    - Consistent health checks
-    - Consistent automated documentation
-
-- Things we're still working on:
-    - Testing
-    - Backend service clients
-    - All-in on AWS/ECS? (Autoscaling, ELBs)
-    - Portability to other providers/systems (nomad/consul)
-
-
-## Timeline of work
-
-    <----------------------------------------------------------->
-      1.          2.          3.          4.         5.
-
-    1. Identify customers and pain
-    2. Determine what can ease their pain
-    3. Implement and test
-    4. Deploy and operate
-    5. Measure and evaluate
-    6. Maintain and improve
-
-We focus so much of our efforts on 3. We design our organizations around it. We
-design our processes around it. (What's your "definition of done"? Does it have
-the words "in production"?)
-
-We need to make ALL 1-6 better, not just 3 (and 4)
-
-## Constraint: data
-
-Microservices are a [useful] set of *constraints* to control how your data are
-accessed
-
-- Gets you away from integrating at the data level (...because your data live
-  forever, and if everyone can reach in and muck with tables controls your
-  ability to change by increasing the cost due to unforeseen side-effects)
-
-- Naturally restrict the way your data are accessed -- arbitrary queries can
-  kill your DB (yes, even your NoSQL DB), and wrapping an API around it goes a
-  long way to ensuring that doesn't happen. Because your API will tend toward
-  smaller since maintaining a large API is so painful. (But you'll probably do
-  it anyway.)
-
-- Restricting the access to data also has side-effect of lowering the amount
-  you have to keep in your head (easier maintenance).
-
-<blockquote class="twitter-tweet" data-lang="en"><p lang="en" dir="ltr">
-how much code exists simply to protect developers from relational algebra?
-</p>&mdash; Andrew Clay Shafer (@littleidea)
-<a href="https://twitter.com/littleidea/status/737007479129673728">May 29, 2016</a>
-</blockquote>
-<script async src="//platform.twitter.com/widgets.js" charset="utf-8"></script>
-
-## Control
-
-https://www.youtube.com/watch?v=nuYxp7-Au4E ("Stop trying to control everything and just let go... LET GO!")
-
-Illusory if you're not doing it at the right level. And you'll probably do it
-at the wrong level when you're doing something new -- you try to control the
-things you know how to do and measure. So if you have a development background
-you'll come up with coding standards, module layout, etc.
-
-But these are about implementation, and the point of microservices is that you
-don't care about them.
-
-**What do you actually care about?**
-
-What should they be able to do and respond to in the flow of deployment and
-runtime?
-
-Think about Heroku. (How many people here have used Heroku?) One of the
-standards it defines is a buildpack, which winds up being a lifecycle
-standardization. It's a contract between Heroku and your code about how your
-application will be started, what it needs to provide to the runtime, and what
-events it'll get during that process so it knows when it's safe to perform
-certain actions.
-
-More concretely, think about how you do migrations.
-
-- How will that change if you have multiple applications starting up at once?
-- Should you create guarantees in the system that migrations can't run twice?
-  Or should your migrations be idempotent so that running them again won't
-  cause an error? Which of these is a hard distributed systems problem?
-
-[[I'm not sure if this is a good example, but maybe it's a good demonstration
-of when it's okay to dictate implementation details...]]
-
-Alternatively, think about how you do logging. Should you enforce that everyone
-uses the same logging code? Or should you create a contract for logging
-messages and provide parameters for that? Say, "an rsyslog service will be
-available on every host with a max message size of 4k, and you can send
-structured JSON with the following fields...".
-
-
-Dan North presentation "Pimp my architecture" has line about 33:00: "You get
-these emergent simplicities when the thing starts to take shape..." -- as you
-small systems out of larger systems, keep your eye open for commonalities or
-things to eliminate.
-
-Example: ORMs. If you're not trying to manage many entity interrelationships, and
-each service only manages a small handful of entities, then what is an ORM
-actually giving you? (Venn diagram of features in ORMs that are useful in large
-systems, then the systems that are actually useful in small systems.)
-
-
-### Other quotes
-
-"Good judgement comes from experience, experience comes from bad judgement. Bad
-judgement is okay as long as you're learning while you do it."
-(Dan North, https://www.infoq.com/presentations/north-pimp-my-architecture)
-
-"The problem with having a ten-parameter function call is that you've probably
-missed a couple"
-(Dan North quoting Perlis (?), https://www.infoq.com/presentations/microservices-replaceability-consistency)
-
-"The work of implementing a feature initially is often a tiny fraction of the
-work to support that feature over the lifetime of a product, and yes, we can
-"just" code any logic someone dreams up. What might take two weeks right now
-adds a marginal cost to every engineering project we'll take on in this product
-in the future. In fact, I'd argue that the initial time spent implementing a
-feature is one of the least interesting data points to consider when weighing
-the cost and benefit of a feature."
-(Kris Gale, http://firstround.com/review/The-one-cost-engineers-and-product-managers-dont-consider/)
-
-
-<!--
-Control:
-
-- Illusory if you're not doing it at the right level. Worst kind is when
-you *think* you have control but you don't actually.
-
-Data
-
-- Constraint: Bezos telling Amazon that services must not access other
-services' data directly. (Yegge post) This frees up the service to
-use whatever datastore it wants - NoSQL, key/value, relational, filesystem.
-
-- Control: You must use version x of database y. All tables must be fully
-normalized and all references must be backed by foreign keys.
-
-More
-
-Useful constraints for accessing data
-
-- Gets you away from integrating at the data level (...because your data live
-  forever, and if everyone can reach in and muck with tables controls your
-  ability to change by increasing the cost due to unforeseen side-effects)
-
-- Naturally restrict the way your data are accessed - arbitrary queries can
-  kill your DB (yes, even your NoSQL DB), and wrapping an API around it goes a
-  long way to ensuring that doesn't happen. Because your API will tend toward
-  smaller since maintaining a large API is so painful. (But you'll probably do
-  it anyway.)
-
-- Restricting the access to data also has side-effect of lowering the amount
-  you have to keep in your head (easier maintenance).
-
-
-Ideas:
-
-- Our system: everything is relational.
-- We are using a single database... right now.
-- Services cannot peek into other services tables...
-- ...except for reporting (still thinking about this)
-- Also: data affinity for read-only.
--->
-
-<!--
-@@@ this might go away, control vs constraint seems like a distinction without
-a difference
-- Lots of choices about what to control and what to constrain
-    - Create a constraint (the what) to incentivize the behavior you want to
-      see (or avoid) and let teams find the best way to do it
-    - Create a control if you want to specify both the what and the how
-    - Constraint: Bezos telling Amazon that services must not access other
-      services' data directly. (Yegge post) This frees up the service to
-      use whatever datastore it wants - NoSQL, key/value, relational,
-      filesystem.
-    - Control: You must use version x of database y. All tables must be fully
-      normalized and all references must be backed by foreign keys. (Or you
-      must use language x with framework y version z)
--->
+# reveal.js [![Build Status](https://travis-ci.org/hakimel/reveal.js.svg?branch=master)](https://travis-ci.org/hakimel/reveal.js)
+
+A framework for easily creating beautiful presentations using HTML. [Check out the live demo](http://lab.hakim.se/reveal-js/).
+
+reveal.js comes with a broad range of features including [nested slides](https://github.com/hakimel/reveal.js#markup), [Markdown contents](https://github.com/hakimel/reveal.js#markdown), [PDF export](https://github.com/hakimel/reveal.js#pdf-export), [speaker notes](https://github.com/hakimel/reveal.js#speaker-notes) and a [JavaScript API](https://github.com/hakimel/reveal.js#api). There's also a fully featured visual editor and platform for sharing reveal.js presentations at [slides.com](https://slides.com).
+
+## Table of contents
+- [Online Editor](#online-editor)
+- [Instructions](#instructions)
+  - [Markup](#markup)
+  - [Markdown](#markdown)
+  - [Element Attributes](#element-attributes)
+  - [Slide Attributes](#slide-attributes)
+- [Configuration](#configuration)
+- [Presentation Size](#presentation-size)
+- [Dependencies](#dependencies)
+- [Ready Event](#ready-event)
+- [Auto-sliding](#auto-sliding)
+- [Keyboard Bindings](#keyboard-bindings)
+- [Touch Navigation](#touch-navigation)
+- [Lazy Loading](#lazy-loading)
+- [API](#api)
+  - [Slide Changed Event](#slide-changed-event)
+  - [Presentation State](#presentation-state)
+  - [Slide States](#slide-states)
+  - [Slide Backgrounds](#slide-backgrounds)
+  - [Parallax Background](#parallax-background)
+  - [Slide Transitions](#slide-transitions)
+  - [Internal links](#internal-links)
+  - [Fragments](#fragments)
+  - [Fragment events](#fragment-events)
+  - [Code syntax highlighting](#code-syntax-highlighting)
+  - [Slide number](#slide-number)
+  - [Overview mode](#overview-mode)
+  - [Fullscreen mode](#fullscreen-mode)
+  - [Embedded media](#embedded-media)
+  - [Stretching elements](#stretching-elements)
+  - [postMessage API](#postmessage-api)
+- [PDF Export](#pdf-export)
+- [Theming](#theming)
+- [Speaker Notes](#speaker-notes)
+  - [Share and Print Speaker Notes](#share-and-print-speaker-notes)
+  - [Server Side Speaker Notes](#server-side-speaker-notes)
+- [Multiplexing](#multiplexing)
+  - [Master presentation](#master-presentation)
+  - [Client presentation](#client-presentation)
+  - [Socket.io server](#socketio-server)
+- [MathJax](#mathjax)
+- [Installation](#installation)
+  - [Basic setup](#basic-setup)
+  - [Full setup](#full-setup)
+  - [Folder Structure](#folder-structure)
+- [License](#license)
+
+#### More reading
+- [Changelog](https://github.com/hakimel/reveal.js/releases): Up-to-date version history.
+- [Examples](https://github.com/hakimel/reveal.js/wiki/Example-Presentations): Presentations created with reveal.js, add your own!
+- [Browser Support](https://github.com/hakimel/reveal.js/wiki/Browser-Support): Explanation of browser support and fallbacks.
+- [Plugins](https://github.com/hakimel/reveal.js/wiki/Plugins,-Tools-and-Hardware): A list of plugins that can be used to extend reveal.js.
+
+## Online Editor
+
+Presentations are written using HTML or Markdown but there's also an online editor for those of you who prefer a graphical interface. Give it a try at [http://slides.com](http://slides.com?ref=github).
+
+
+## Instructions
+
+### Markup
+
+Here's a barebones example of a fully working reveal.js presentation:
+```html
+<html>
+	<head>
+		<link rel="stylesheet" href="css/reveal.css">
+		<link rel="stylesheet" href="css/theme/white.css">
+	</head>
+	<body>
+		<div class="reveal">
+			<div class="slides">
+				<section>Slide 1</section>
+				<section>Slide 2</section>
+			</div>
+		</div>
+		<script src="js/reveal.js"></script>
+		<script>
+			Reveal.initialize();
+		</script>
+	</body>
+</html>
+```
+
+The presentation markup hierarchy needs to be `.reveal > .slides > section` where the `section` represents one slide and can be repeated indefinitely. If you place multiple `section` elements inside of another `section` they will be shown as vertical slides. The first of the vertical slides is the "root" of the others (at the top), and will be included in the horizontal sequence. For example:
+
+```html
+<div class="reveal">
+	<div class="slides">
+		<section>Single Horizontal Slide</section>
+		<section>
+			<section>Vertical Slide 1</section>
+			<section>Vertical Slide 2</section>
+		</section>
+	</div>
+</div>
+```
 
+### Markdown
+
+It's possible to write your slides using Markdown. To enable Markdown, add the ```data-markdown``` attribute to your ```<section>``` elements and wrap the contents in a ```<script type="text/template">``` like the example below.
+
+This is based on [data-markdown](https://gist.github.com/1343518) from [Paul Irish](https://github.com/paulirish) modified to use [marked](https://github.com/chjj/marked) to support [GitHub Flavored Markdown](https://help.github.com/articles/github-flavored-markdown). Sensitive to indentation (avoid mixing tabs and spaces) and line breaks (avoid consecutive breaks).
+
+```html
+<section data-markdown>
+	<script type="text/template">
+		## Page title
+
+		A paragraph with some text and a [link](http://hakim.se).
+	</script>
+</section>
+```
+
+#### External Markdown
+
+You can write your content as a separate file and have reveal.js load it at runtime. Note the separator arguments which determine how slides are delimited in the external file. The ```data-charset``` attribute is optional and specifies which charset to use when loading the external file.
+
+When used locally, this feature requires that reveal.js [runs from a local web server](#full-setup).
+
+```html
+<section data-markdown="example.md"  
+         data-separator="^\n\n\n"  
+         data-separator-vertical="^\n\n"  
+         data-separator-notes="^Note:"  
+         data-charset="iso-8859-15">
+</section>
+```
+
+#### Element Attributes
+
+Special syntax (in html comment) is available for adding attributes to Markdown elements. This is useful for fragments, amongst other things.
+
+```html
+<section data-markdown>
+	<script type="text/template">
+		- Item 1 <!-- .element: class="fragment" data-fragment-index="2" -->
+		- Item 2 <!-- .element: class="fragment" data-fragment-index="1" -->
+	</script>
+</section>
+```
+
+#### Slide Attributes
+
+Special syntax (in html comment) is available for adding attributes to the slide `<section>` elements generated by your Markdown.
+
+```html
+<section data-markdown>
+	<script type="text/template">
+	<!-- .slide: data-background="#ff0000" -->
+		Markdown content
+	</script>
+</section>
+```
+
+
+### Configuration
+
+At the end of your page you need to initialize reveal by running the following code. Note that all config values are optional and will default as specified below.
+
+```javascript
+Reveal.initialize({
+
+	// Display controls in the bottom right corner
+	controls: true,
+
+	// Display a presentation progress bar
+	progress: true,
+
+	// Display the page number of the current slide
+	slideNumber: false,
+
+	// Push each slide change to the browser history
+	history: false,
+
+	// Enable keyboard shortcuts for navigation
+	keyboard: true,
+
+	// Enable the slide overview mode
+	overview: true,
+
+	// Vertical centering of slides
+	center: true,
+
+	// Enables touch navigation on devices with touch input
+	touch: true,
+
+	// Loop the presentation
+	loop: false,
+
+	// Change the presentation direction to be RTL
+	rtl: false,
+
+	// Randomizes the order of slides each time the presentation loads
+	shuffle: false,
+
+	// Turns fragments on and off globally
+	fragments: true,
+
+	// Flags if the presentation is running in an embedded mode,
+	// i.e. contained within a limited portion of the screen
+	embedded: false,
+
+	// Flags if we should show a help overlay when the questionmark
+	// key is pressed
+	help: true,
+
+	// Flags if speaker notes should be visible to all viewers
+	showNotes: false,
+
+	// Number of milliseconds between automatically proceeding to the
+	// next slide, disabled when set to 0, this value can be overwritten
+	// by using a data-autoslide attribute on your slides
+	autoSlide: 0,
+
+	// Stop auto-sliding after user input
+	autoSlideStoppable: true,
+
+	// Use this method for navigation when auto-sliding
+	autoSlideMethod: Reveal.navigateNext,
+
+	// Enable slide navigation via mouse wheel
+	mouseWheel: false,
+
+	// Hides the address bar on mobile devices
+	hideAddressBar: true,
+
+	// Opens links in an iframe preview overlay
+	previewLinks: false,
+
+	// Transition style
+	transition: 'default', // none/fade/slide/convex/concave/zoom
+
+	// Transition speed
+	transitionSpeed: 'default', // default/fast/slow
+
+	// Transition style for full page slide backgrounds
+	backgroundTransition: 'default', // none/fade/slide/convex/concave/zoom
+
+	// Number of slides away from the current that are visible
+	viewDistance: 3,
+
+	// Parallax background image
+	parallaxBackgroundImage: '', // e.g. "'https://s3.amazonaws.com/hakim-static/reveal-js/reveal-parallax-1.jpg'"
+
+	// Parallax background size
+	parallaxBackgroundSize: '', // CSS syntax, e.g. "2100px 900px"
+
+	// Number of pixels to move the parallax background per slide
+	// - Calculated automatically unless specified
+	// - Set to 0 to disable movement along an axis
+	parallaxBackgroundHorizontal: null,
+	parallaxBackgroundVertical: null
+
+});
+```
+
+
+The configuration can be updated after initialization using the ```configure``` method:
+
+```javascript
+// Turn autoSlide off
+Reveal.configure({ autoSlide: 0 });
+
+// Start auto-sliding every 5s
+Reveal.configure({ autoSlide: 5000 });
+```
+
+
+### Presentation Size
+
+All presentations have a normal size, that is the resolution at which they are authored. The framework will automatically scale presentations uniformly based on this size to ensure that everything fits on any given display or viewport.
+
+See below for a list of configuration options related to sizing, including default values:
+
+```javascript
+Reveal.initialize({
+
+	...
+
+	// The "normal" size of the presentation, aspect ratio will be preserved
+	// when the presentation is scaled to fit different resolutions. Can be
+	// specified using percentage units.
+	width: 960,
+	height: 700,
+
+	// Factor of the display size that should remain empty around the content
+	margin: 0.1,
+
+	// Bounds for smallest/largest possible scale to apply to content
+	minScale: 0.2,
+	maxScale: 1.5
+
+});
+```
+
+
+### Dependencies
+
+Reveal.js doesn't _rely_ on any third party scripts to work but a few optional libraries are included by default. These libraries are loaded as dependencies in the order they appear, for example:
+
+```javascript
+Reveal.initialize({
+	dependencies: [
+		// Cross-browser shim that fully implements classList - https://github.com/eligrey/classList.js/
+		{ src: 'lib/js/classList.js', condition: function() { return !document.body.classList; } },
+
+		// Interpret Markdown in <section> elements
+		{ src: 'plugin/markdown/marked.js', condition: function() { return !!document.querySelector( '[data-markdown]' ); } },
+		{ src: 'plugin/markdown/markdown.js', condition: function() { return !!document.querySelector( '[data-markdown]' ); } },
+
+		// Syntax highlight for <code> elements
+		{ src: 'plugin/highlight/highlight.js', async: true, callback: function() { hljs.initHighlightingOnLoad(); } },
+
+		// Zoom in and out with Alt+click
+		{ src: 'plugin/zoom-js/zoom.js', async: true },
+
+		// Speaker notes
+		{ src: 'plugin/notes/notes.js', async: true },
+
+		// MathJax
+		{ src: 'plugin/math/math.js', async: true }
+	]
+});
+```
+
+You can add your own extensions using the same syntax. The following properties are available for each dependency object:
+- **src**: Path to the script to load
+- **async**: [optional] Flags if the script should load after reveal.js has started, defaults to false
+- **callback**: [optional] Function to execute when the script has loaded
+- **condition**: [optional] Function which must return true for the script to be loaded
+
+
+### Ready Event
+
+A 'ready' event is fired when reveal.js has loaded all non-async dependencies and is ready to start navigating. To check if reveal.js is already 'ready' you can call `Reveal.isReady()`.
+
+```javascript
+Reveal.addEventListener( 'ready', function( event ) {
+	// event.currentSlide, event.indexh, event.indexv
+} );
+```
+
+
+### Auto-sliding
+
+Presentations can be configured to progress through slides automatically, without any user input. To enable this you will need to tell the framework how many milliseconds it should wait between slides:
+
+```javascript
+// Slide every five seconds
+Reveal.configure({
+  autoSlide: 5000
+});
+```
+When this is turned on a control element will appear that enables users to pause and resume auto-sliding. Alternatively, sliding can be paused or resumed by pressing »a« on the keyboard. Sliding is paused automatically as soon as the user starts navigating. You can disable these controls by specifying ```autoSlideStoppable: false``` in your reveal.js config.
+
+You can also override the slide duration for individual slides and fragments by using the ```data-autoslide``` attribute:
+
+```html
+<section data-autoslide="2000">
+	<p>After 2 seconds the first fragment will be shown.</p>
+	<p class="fragment" data-autoslide="10000">After 10 seconds the next fragment will be shown.</p>
+	<p class="fragment">Now, the fragment is displayed for 2 seconds before the next slide is shown.</p>
+</section>
+```
+
+To override the method used for navigation when auto-sliding, you can specify the ```autoSlideMethod``` setting. To only navigate along the top layer and ignore vertical slides, set this to ```Reveal.navigateRight```.
+
+Whenever the auto-slide mode is resumed or paused the ```autoslideresumed``` and ```autoslidepaused``` events are fired.
+
+
+### Keyboard Bindings
+
+If you're unhappy with any of the default keyboard bindings you can override them using the ```keyboard``` config option:
+
+```javascript
+Reveal.configure({
+  keyboard: {
+    13: 'next', // go to the next slide when the ENTER key is pressed
+    27: function() {}, // do something custom when ESC is pressed
+    32: null // don't do anything when SPACE is pressed (i.e. disable a reveal.js default binding)
+  }
+});
+```
+
+### Touch Navigation
+
+You can swipe to navigate through a presentation on any touch-enabled device. Horizontal swipes change between horizontal slides, vertical swipes change between vertical slides. If you wish to disable this you can set the `touch` config option to false when initializing reveal.js.
+
+If there's some part of your content that needs to remain accessible to touch events you'll need to highlight this by adding a `data-prevent-swipe` attribute to the element. One common example where this is useful is elements that need to be scrolled.
+
+
+### Lazy Loading
+
+When working on presentation with a lot of media or iframe content it's important to load lazily. Lazy loading means that reveal.js will only load content for the few slides nearest to the current slide. The number of slides that are preloaded is determined by the `viewDistance` configuration option.
+
+To enable lazy loading all you need to do is change your "src" attributes to "data-src" as shown below. This is supported for image, video, audio and iframe elements. Lazy loaded iframes will also unload when the containing slide is no longer visible.
+
+```html
+<section>
+  <img data-src="image.png">
+  <iframe data-src="http://hakim.se"></iframe>
+  <video>
+    <source data-src="video.webm" type="video/webm" />
+    <source data-src="video.mp4" type="video/mp4" />
+  </video>
+</section>
+```
+
+
+### API
+
+The ``Reveal`` object exposes a JavaScript API for controlling navigation and reading state:
+
+```javascript
+// Navigation
+Reveal.slide( indexh, indexv, indexf );
+Reveal.left();
+Reveal.right();
+Reveal.up();
+Reveal.down();
+Reveal.prev();
+Reveal.next();
+Reveal.prevFragment();
+Reveal.nextFragment();
+
+// Randomize the order of slides
+Reveal.shuffle();
+
+// Toggle presentation states, optionally pass true/false to force on/off
+Reveal.toggleOverview();
+Reveal.togglePause();
+Reveal.toggleAutoSlide();
+
+// Change a config value at runtime
+Reveal.configure({ controls: true });
+
+// Returns the present configuration options
+Reveal.getConfig();
+
+// Fetch the current scale of the presentation
+Reveal.getScale();
+
+// Retrieves the previous and current slide elements
+Reveal.getPreviousSlide();
+Reveal.getCurrentSlide();
+
+Reveal.getIndices(); // { h: 0, v: 0 } }
+Reveal.getProgress(); // 0-1
+Reveal.getTotalSlides();
+
+// Returns the speaker notes for the current slide
+Reveal.getSlideNotes();
+
+// State checks
+Reveal.isFirstSlide();
+Reveal.isLastSlide();
+Reveal.isOverview();
+Reveal.isPaused();
+Reveal.isAutoSliding();
+```
+
+### Slide Changed Event
+
+A 'slidechanged' event is fired each time the slide is changed (regardless of state). The event object holds the index values of the current slide as well as a reference to the previous and current slide HTML nodes.
+
+Some libraries, like MathJax (see [#226](https://github.com/hakimel/reveal.js/issues/226#issuecomment-10261609)), get confused by the transforms and display states of slides. Often times, this can be fixed by calling their update or render function from this callback.
+
+```javascript
+Reveal.addEventListener( 'slidechanged', function( event ) {
+	// event.previousSlide, event.currentSlide, event.indexh, event.indexv
+} );
+```
+
+### Presentation State
+
+The presentation's current state can be fetched by using the `getState` method. A state object contains all of the information required to put the presentation back as it was when `getState` was first called. Sort of like a snapshot. It's a simple object that can easily be stringified and persisted or sent over the wire.
+
+```javascript
+Reveal.slide( 1 );
+// we're on slide 1
+
+var state = Reveal.getState();
+
+Reveal.slide( 3 );
+// we're on slide 3
+
+Reveal.setState( state );
+// we're back on slide 1
+```
+
+### Slide States
+
+If you set ``data-state="somestate"`` on a slide ``<section>``, "somestate" will be applied as a class on the document element when that slide is opened. This allows you to apply broad style changes to the page based on the active slide.
+
+Furthermore you can also listen to these changes in state via JavaScript:
+
+```javascript
+Reveal.addEventListener( 'somestate', function() {
+	// TODO: Sprinkle magic
+}, false );
+```
+
+### Slide Backgrounds
+
+Slides are contained within a limited portion of the screen by default to allow them to fit any display and scale uniformly. You can apply full page backgrounds outside of the slide area by adding a ```data-background``` attribute to your ```<section>``` elements. Four different types of backgrounds are supported: color, image, video and iframe.
+
+##### Color Backgrounds
+All CSS color formats are supported, like rgba() or hsl().
+```html
+<section data-background-color="#ff0000">
+	<h2>Color</h2>
+</section>
+```
+
+##### Image Backgrounds
+By default, background images are resized to cover the full page. Available options:
+
+| Attribute                    | Default    | Description |
+| :--------------------------- | :--------- | :---------- |
+| data-background-image        |            | URL of the image to show. GIFs restart when the slide opens. |
+| data-background-size         | cover      | See [background-size](https://developer.mozilla.org/docs/Web/CSS/background-size) on MDN.  |
+| data-background-position     | center     | See [background-position](https://developer.mozilla.org/docs/Web/CSS/background-position) on MDN. |
+| data-background-repeat       | no-repeat  | See [background-repeat](https://developer.mozilla.org/docs/Web/CSS/background-repeat) on MDN. |
+```html
+<section data-background-image="http://example.com/image.png">
+	<h2>Image</h2>
+</section>
+<section data-background-image="http://example.com/image.png" data-background-size="100px" data-background-repeat="repeat">
+	<h2>This background image will be sized to 100px and repeated</h2>
+</section>
+```
+
+##### Video Backgrounds
+Automatically plays a full size video behind the slide.
+
+| Attribute                    | Default | Description |
+| :--------------------------- | :------ | :---------- |
+| data-background-video        |         | A single video source, or a comma separated list of video sources. |
+| data-background-video-loop   | false   | Flags if the video should play repeatedly. |
+| data-background-video-muted  | false   | Flags if the audio should be muted. |
+
+```html
+<section data-background-video="https://s3.amazonaws.com/static.slid.es/site/homepage/v1/homepage-video-editor.mp4,https://s3.amazonaws.com/static.slid.es/site/homepage/v1/homepage-video-editor.webm" data-background-video-loop data-background-video-muted>
+	<h2>Video</h2>
+</section>
+```
+
+##### Iframe Backgrounds
+Embeds a web page as a background. Note that since the iframe is in the background layer, behind your slides, it is not possible to interact with the embedded page.
+```html
+<section data-background-iframe="https://slides.com">
+	<h2>Iframe</h2>
+</section>
+```
+
+##### Background Transitions
+Backgrounds transition using a fade animation by default. This can be changed to a linear sliding transition by passing ```backgroundTransition: 'slide'``` to the ```Reveal.initialize()``` call. Alternatively you can set ```data-background-transition``` on any section with a background to override that specific transition.
+
+
+### Parallax Background
+
+If you want to use a parallax scrolling background, set the first two config properties below when initializing reveal.js (the other two are optional).
+
+```javascript
+Reveal.initialize({
+
+	// Parallax background image
+	parallaxBackgroundImage: '', // e.g. "https://s3.amazonaws.com/hakim-static/reveal-js/reveal-parallax-1.jpg"
+
+	// Parallax background size
+	parallaxBackgroundSize: '', // CSS syntax, e.g. "2100px 900px" - currently only pixels are supported (don't use % or auto)
+
+	// Number of pixels to move the parallax background per slide
+	// - Calculated automatically unless specified
+	// - Set to 0 to disable movement along an axis
+	parallaxBackgroundHorizontal: 200,
+	parallaxBackgroundVertical: 50
+
+});
+```
+
+Make sure that the background size is much bigger than screen size to allow for some scrolling. [View example](http://lab.hakim.se/reveal-js/?parallaxBackgroundImage=https%3A%2F%2Fs3.amazonaws.com%2Fhakim-static%2Freveal-js%2Freveal-parallax-1.jpg&parallaxBackgroundSize=2100px%20900px).
+
+
+
+### Slide Transitions
+The global presentation transition is set using the ```transition``` config value. You can override the global transition for a specific slide by using the ```data-transition``` attribute:
+
+```html
+<section data-transition="zoom">
+	<h2>This slide will override the presentation transition and zoom!</h2>
+</section>
+
+<section data-transition-speed="fast">
+	<h2>Choose from three transition speeds: default, fast or slow!</h2>
+</section>
+```
+
+You can also use different in and out transitions for the same slide:
+
+```html
+<section data-transition="slide">
+    The train goes on …
+</section>
+<section data-transition="slide">
+    and on …
+</section>
+<section data-transition="slide-in fade-out">
+    and stops.
+</section>
+<section data-transition="fade-in slide-out">
+    (Passengers entering and leaving)
+</section>
+<section data-transition="slide">
+    And it starts again.
+</section>
+```
+
+
+### Internal links
+
+It's easy to link between slides. The first example below targets the index of another slide whereas the second targets a slide with an ID attribute (```<section id="some-slide">```):
+
+```html
+<a href="#/2/2">Link</a>
+<a href="#/some-slide">Link</a>
+```
+
+You can also add relative navigation links, similar to the built in reveal.js controls, by appending one of the following classes on any element. Note that each element is automatically given an ```enabled``` class when it's a valid navigation route based on the current slide.
+
+```html
+<a href="#" class="navigate-left">
+<a href="#" class="navigate-right">
+<a href="#" class="navigate-up">
+<a href="#" class="navigate-down">
+<a href="#" class="navigate-prev"> <!-- Previous vertical or horizontal slide -->
+<a href="#" class="navigate-next"> <!-- Next vertical or horizontal slide -->
+```
+
+
+### Fragments
+Fragments are used to highlight individual elements on a slide. Every element with the class ```fragment``` will be stepped through before moving on to the next slide. Here's an example: http://lab.hakim.se/reveal-js/#/fragments
+
+The default fragment style is to start out invisible and fade in. This style can be changed by appending a different class to the fragment:
+
+```html
+<section>
+	<p class="fragment grow">grow</p>
+	<p class="fragment shrink">shrink</p>
+	<p class="fragment fade-out">fade-out</p>
+	<p class="fragment fade-up">fade-up (also down, left and right!)</p>
+	<p class="fragment current-visible">visible only once</p>
+	<p class="fragment highlight-current-blue">blue only once</p>
+	<p class="fragment highlight-red">highlight-red</p>
+	<p class="fragment highlight-green">highlight-green</p>
+	<p class="fragment highlight-blue">highlight-blue</p>
+</section>
+```
+
+Multiple fragments can be applied to the same element sequentially by wrapping it, this will fade in the text on the first step and fade it back out on the second.
+
+```html
+<section>
+	<span class="fragment fade-in">
+		<span class="fragment fade-out">I'll fade in, then out</span>
+	</span>
+</section>
+```
+
+The display order of fragments can be controlled using the ```data-fragment-index``` attribute.
+
+```html
+<section>
+	<p class="fragment" data-fragment-index="3">Appears last</p>
+	<p class="fragment" data-fragment-index="1">Appears first</p>
+	<p class="fragment" data-fragment-index="2">Appears second</p>
+</section>
+```
+
+### Fragment events
+
+When a slide fragment is either shown or hidden reveal.js will dispatch an event.
+
+Some libraries, like MathJax (see #505), get confused by the initially hidden fragment elements. Often times this can be fixed by calling their update or render function from this callback.
+
+```javascript
+Reveal.addEventListener( 'fragmentshown', function( event ) {
+	// event.fragment = the fragment DOM element
+} );
+Reveal.addEventListener( 'fragmenthidden', function( event ) {
+	// event.fragment = the fragment DOM element
+} );
+```
+
+### Code syntax highlighting
+
+By default, Reveal is configured with [highlight.js](https://highlightjs.org/) for code syntax highlighting. Below is an example with clojure code that will be syntax highlighted. When the `data-trim` attribute is present, surrounding whitespace is automatically removed.  HTML will be escaped by default. To avoid this, for example if you are using `<mark>` to call out a line of code, add the `data-noescape` attribute to the `<code>` element.
+
+```html
+<section>
+	<pre><code data-trim data-noescape>
+(def lazy-fib
+  (concat
+   [0 1]
+   <mark>((fn rfib [a b]</mark>
+        (lazy-cons (+ a b) (rfib b (+ a b)))) 0 1)))
+	</code></pre>
+</section>
+```
+
+### Slide number
+If you would like to display the page number of the current slide you can do so using the ```slideNumber``` configuration value.
+
+```javascript
+// Shows the slide number using default formatting
+Reveal.configure({ slideNumber: true });
+
+// Slide number formatting can be configured using these variables:
+//  "h.v": 	horizontal . vertical slide number (default)
+//  "h/v": 	horizontal / vertical slide number
+//    "c": 	flattened slide number
+//  "c/t": 	flattened slide number / total slides
+Reveal.configure({ slideNumber: 'c/t' });
+
+```
+
+
+### Overview mode
+
+Press "Esc" or "o" keys to toggle the overview mode on and off. While you're in this mode, you can still navigate between slides,
+as if you were at 1,000 feet above your presentation. The overview mode comes with a few API hooks:
+
+```javascript
+Reveal.addEventListener( 'overviewshown', function( event ) { /* ... */ } );
+Reveal.addEventListener( 'overviewhidden', function( event ) { /* ... */ } );
+
+// Toggle the overview mode programmatically
+Reveal.toggleOverview();
+```
+
+### Fullscreen mode
+Just press »F« on your keyboard to show your presentation in fullscreen mode. Press the »ESC« key to exit fullscreen mode.
+
+
+### Embedded media
+Embedded HTML5 `<video>`/`<audio>` and YouTube iframes are automatically paused when you navigate away from a slide. This can be disabled by decorating your element with a `data-ignore` attribute.
+
+Add `data-autoplay` to your media element if you want it to automatically start playing when the slide is shown:
+
+```html
+<video data-autoplay src="http://clips.vorwaerts-gmbh.de/big_buck_bunny.mp4"></video>
+```
+
+Additionally the framework automatically pushes two [post messages](https://developer.mozilla.org/en-US/docs/Web/API/Window.postMessage) to all iframes, ```slide:start``` when the slide containing the iframe is made visible and ```slide:stop``` when it is hidden.
+
+
+### Stretching elements
+Sometimes it's desirable to have an element, like an image or video, stretch to consume as much space as possible within a given slide. This can be done by adding the ```.stretch``` class to an element as seen below:
+
+```html
+<section>
+	<h2>This video will use up the remaining space on the slide</h2>
+    <video class="stretch" src="http://clips.vorwaerts-gmbh.de/big_buck_bunny.mp4"></video>
+</section>
+```
+
+Limitations:
+- Only direct descendants of a slide section can be stretched
+- Only one descendant per slide section can be stretched
+
+
+### postMessage API
+The framework has a built-in postMessage API that can be used when communicating with a presentation inside of another window. Here's an example showing how you'd make a reveal.js instance in the given window proceed to slide 2:
+
+```javascript
+<window>.postMessage( JSON.stringify({ method: 'slide', args: [ 2 ] }), '*' );
+```
+
+When reveal.js runs inside of an iframe it can optionally bubble all of its events to the parent. Bubbled events are stringified JSON with three fields: namespace, eventName and state. Here's how you subscribe to them from the parent window:
+
+```javascript
+window.addEventListener( 'message', function( event ) {
+	var data = JSON.parse( event.data );
+	if( data.namespace === 'reveal' && data.eventName ==='slidechanged' ) {
+		// Slide changed, see data.state for slide number
+	}
+} );
+```
+
+This cross-window messaging can be toggled on or off using configuration flags.
+
+```javascript
+Reveal.initialize({
+	...,
+
+	// Exposes the reveal.js API through window.postMessage
+	postMessage: true,
+
+	// Dispatches all reveal.js events to the parent window through postMessage
+	postMessageEvents: false
+});
+```
+
+
+## PDF Export
+
+Presentations can be exported to PDF via a special print stylesheet. This feature requires that you use [Google Chrome](http://google.com/chrome) or [Chromium](https://www.chromium.org/Home).
+Here's an example of an exported presentation that's been uploaded to SlideShare: http://www.slideshare.net/hakimel/revealjs-300.
+
+1. Open your presentation with `print-pdf` included anywhere in the query string. This triggers the default index HTML to load the PDF print stylesheet ([css/print/pdf.css](https://github.com/hakimel/reveal.js/blob/master/css/print/pdf.css)). You can test this with [lab.hakim.se/reveal-js?print-pdf](http://lab.hakim.se/reveal-js?print-pdf).
+2. Open the in-browser print dialog (CTRL/CMD+P).
+3. Change the **Destination** setting to **Save as PDF**.
+4. Change the **Layout** to **Landscape**.
+5. Change the **Margins** to **None**.
+6. Enable the **Background graphics** option.
+7. Click **Save**.
+
+![Chrome Print Settings](https://s3.amazonaws.com/hakim-static/reveal-js/pdf-print-settings-2.png)
+
+Alternatively you can use the [decktape](https://github.com/astefanutti/decktape) project.
+
+## Theming
+
+The framework comes with a few different themes included:
+
+- black: Black background, white text, blue links (default theme)
+- white: White background, black text, blue links
+- league: Gray background, white text, blue links (default theme for reveal.js < 3.0.0)
+- beige: Beige background, dark text, brown links
+- sky: Blue background, thin dark text, blue links
+- night: Black background, thick white text, orange links
+- serif: Cappuccino background, gray text, brown links
+- simple: White background, black text, blue links
+- solarized: Cream-colored background, dark green text, blue links
+
+Each theme is available as a separate stylesheet. To change theme you will need to replace **black** below with your desired theme name in index.html:
+
+```html
+<link rel="stylesheet" href="css/theme/black.css" id="theme">
+```
+
+If you want to add a theme of your own see the instructions here: [/css/theme/README.md](https://github.com/hakimel/reveal.js/blob/master/css/theme/README.md).
+
+
+## Speaker Notes
+
+reveal.js comes with a speaker notes plugin which can be used to present per-slide notes in a separate browser window. The notes window also gives you a preview of the next upcoming slide so it may be helpful even if you haven't written any notes. Press the 's' key on your keyboard to open the notes window.
+
+Notes are defined by appending an ```<aside>``` element to a slide as seen below. You can add the ```data-markdown``` attribute to the aside element if you prefer writing notes using Markdown.
+
+Alternatively you can add your notes in a `data-notes` attribute on the slide. Like `<section data-notes="Something important"></section>`.
+
+When used locally, this feature requires that reveal.js [runs from a local web server](#full-setup).
+
+```html
+<section>
+	<h2>Some Slide</h2>
+
+	<aside class="notes">
+		Oh hey, these are some notes. They'll be hidden in your presentation, but you can see them if you open the speaker notes window (hit 's' on your keyboard).
+	</aside>
+</section>
+```
+
+If you're using the external Markdown plugin, you can add notes with the help of a special delimiter:
+
+```html
+<section data-markdown="example.md" data-separator="^\n\n\n" data-separator-vertical="^\n\n" data-separator-notes="^Note:"></section>
+
+# Title
+## Sub-title
+
+Here is some content...
+
+Note:
+This will only display in the notes window.
+```
+
+#### Share and Print Speaker Notes
+
+Notes are only visible to the speaker inside of the speaker view. If you wish to share your notes with others you can initialize reveal.js with the `showNotes` config value set to `true`. Notes will appear along the bottom of the presentations.
+
+When `showNotes` is enabled notes are also included when you [export to PDF](https://github.com/hakimel/reveal.js#pdf-export).
+
+## Server Side Speaker Notes
+
+In some cases it can be desirable to run notes on a separate device from the one you're presenting on. The Node.js-based notes plugin lets you do this using the same note definitions as its client side counterpart. Include the required scripts by adding the following dependencies:
+
+```javascript
+Reveal.initialize({
+	...
+
+	dependencies: [
+		{ src: 'socket.io/socket.io.js', async: true },
+		{ src: 'plugin/notes-server/client.js', async: true }
+	]
+});
+```
+
+Then:
+
+1. Install [Node.js](http://nodejs.org/) (1.0.0 or later)
+2. Run ```npm install```
+3. Run ```node plugin/notes-server```
+
+
+## Multiplexing
+
+The multiplex plugin allows your audience to view the slides of the presentation you are controlling on their own phone, tablet or laptop. As the master presentation navigates the slides, all client presentations will update in real time. See a demo at [https://reveal-js-multiplex-ccjbegmaii.now.sh/](https://reveal-js-multiplex-ccjbegmaii.now.sh/).
+
+The multiplex plugin needs the following 3 things to operate:
+
+1. Master presentation that has control
+2. Client presentations that follow the master
+3. Socket.io server to broadcast events from the master to the clients
+
+More details:
+
+#### Master presentation
+Served from a static file server accessible (preferably) only to the presenter. This need only be on your (the presenter's) computer. (It's safer to run the master presentation from your own computer, so if the venue's Internet goes down it doesn't stop the show.) An example would be to execute the following commands in the directory of your master presentation:
+
+1. ```npm install node-static```
+2. ```static```
+
+If you want to use the speaker notes plugin with your master presentation then make sure you have the speaker notes plugin configured correctly along with the configuration shown below, then execute ```node plugin/notes-server``` in the directory of your master presentation. The configuration below will cause it to connect to the socket.io server as a master, as well as launch your speaker-notes/static-file server.
+
+You can then access your master presentation at ```http://localhost:1947```
+
+Example configuration:
+```javascript
+Reveal.initialize({
+	// other options...
+
+	multiplex: {
+		// Example values. To generate your own, see the socket.io server instructions.
+		secret: '13652805320794272084', // Obtained from the socket.io server. Gives this (the master) control of the presentation
+		id: '1ea875674b17ca76', // Obtained from socket.io server
+		url: 'https://reveal-js-multiplex-ccjbegmaii.now.sh' // Location of socket.io server
+	},
+
+	// Don't forget to add the dependencies
+	dependencies: [
+		{ src: '//cdn.socket.io/socket.io-1.3.5.js', async: true },
+		{ src: 'plugin/multiplex/master.js', async: true },
+
+		// and if you want speaker notes
+		{ src: 'plugin/notes-server/client.js', async: true }
+
+		// other dependencies...
+	]
+});
+```
+
+#### Client presentation
+Served from a publicly accessible static file server. Examples include: GitHub Pages, Amazon S3, Dreamhost, Akamai, etc. The more reliable, the better. Your audience can then access the client presentation via ```http://example.com/path/to/presentation/client/index.html```, with the configuration below causing them to connect to the socket.io server as clients.
+
+Example configuration:
+```javascript
+Reveal.initialize({
+	// other options...
+
+	multiplex: {
+		// Example values. To generate your own, see the socket.io server instructions.
+		secret: null, // null so the clients do not have control of the master presentation
+		id: '1ea875674b17ca76', // id, obtained from socket.io server
+		url: 'https://reveal-js-multiplex-ccjbegmaii.now.sh' // Location of socket.io server
+	},
+
+	// Don't forget to add the dependencies
+	dependencies: [
+		{ src: '//cdn.socket.io/socket.io-1.3.5.js', async: true },
+		{ src: 'plugin/multiplex/client.js', async: true }
+
+		// other dependencies...
+	]
+});
+```
+
+#### Socket.io server
+Server that receives the slideChanged events from the master presentation and broadcasts them out to the connected client presentations. This needs to be publicly accessible. You can run your own socket.io server with the commands:
+
+1. ```npm install```
+2. ```node plugin/multiplex```
+
+Or you use the socket.io server at [https://reveal-js-multiplex-ccjbegmaii.now.sh/](https://reveal-js-multiplex-ccjbegmaii.now.sh/).
+
+You'll need to generate a unique secret and token pair for your master and client presentations. To do so, visit ```http://example.com/token```, where ```http://example.com``` is the location of your socket.io server. Or if you're going to use the socket.io server at [https://reveal-js-multiplex-ccjbegmaii.now.sh/](https://reveal-js-multiplex-ccjbegmaii.now.sh/), visit [https://reveal-js-multiplex-ccjbegmaii.now.sh/token](https://reveal-js-multiplex-ccjbegmaii.now.sh/token).
+
+You are very welcome to point your presentations at the Socket.io server running at [https://reveal-js-multiplex-ccjbegmaii.now.sh/](https://reveal-js-multiplex-ccjbegmaii.now.sh/), but availability and stability are not guaranteed. For anything mission critical I recommend you run your own server. It is simple to deploy to nodejitsu, heroku, your own environment, etc.
+
+##### socket.io server as file static server
+
+The socket.io server can play the role of static file server for your client presentation, as in the example at [https://reveal-js-multiplex-ccjbegmaii.now.sh/](https://reveal-js-multiplex-ccjbegmaii.now.sh/). (Open [https://reveal-js-multiplex-ccjbegmaii.now.sh/](https://reveal-js-multiplex-ccjbegmaii.now.sh/) in two browsers. Navigate through the slides on one, and the other will update to match.)
+
+Example configuration:
+```javascript
+Reveal.initialize({
+	// other options...
+
+	multiplex: {
+		// Example values. To generate your own, see the socket.io server instructions.
+		secret: null, // null so the clients do not have control of the master presentation
+		id: '1ea875674b17ca76', // id, obtained from socket.io server
+		url: 'example.com:80' // Location of your socket.io server
+	},
+
+	// Don't forget to add the dependencies
+	dependencies: [
+		{ src: '//cdn.socket.io/socket.io-1.3.5.js', async: true },
+		{ src: 'plugin/multiplex/client.js', async: true }
+
+		// other dependencies...
+	]
+```
+
+It can also play the role of static file server for your master presentation and client presentations at the same time (as long as you don't want to use speaker notes). (Open [https://reveal-js-multiplex-ccjbegmaii.now.sh/](https://reveal-js-multiplex-ccjbegmaii.now.sh/) in two browsers. Navigate through the slides on one, and the other will update to match. Navigate through the slides on the second, and the first will update to match.) This is probably not desirable, because you don't want your audience to mess with your slides while you're presenting. ;)
+
+Example configuration:
+```javascript
+Reveal.initialize({
+	// other options...
+
+	multiplex: {
+		// Example values. To generate your own, see the socket.io server instructions.
+		secret: '13652805320794272084', // Obtained from the socket.io server. Gives this (the master) control of the presentation
+		id: '1ea875674b17ca76', // Obtained from socket.io server
+		url: 'example.com:80' // Location of your socket.io server
+	},
+
+	// Don't forget to add the dependencies
+	dependencies: [
+		{ src: '//cdn.socket.io/socket.io-1.3.5.js', async: true },
+		{ src: 'plugin/multiplex/master.js', async: true },
+		{ src: 'plugin/multiplex/client.js', async: true }
+
+		// other dependencies...
+	]
+});
+```
+
+## MathJax
+
+If you want to display math equations in your presentation you can easily do so by including this plugin. The plugin is a very thin wrapper around the [MathJax](http://www.mathjax.org/) library. To use it you'll need to include it as a reveal.js dependency, [find our more about dependencies here](#dependencies).
+
+The plugin defaults to using [LaTeX](http://en.wikipedia.org/wiki/LaTeX) but that can be adjusted through the ```math``` configuration object. Note that MathJax is loaded from a remote server. If you want to use it offline you'll need to download a copy of the library and adjust the ```mathjax``` configuration value.
+
+Below is an example of how the plugin can be configured. If you don't intend to change these values you do not need to include the ```math``` config object at all.
+
+```js
+Reveal.initialize({
+
+	// other options ...
+
+	math: {
+		mathjax: 'https://cdn.mathjax.org/mathjax/latest/MathJax.js',
+		config: 'TeX-AMS_HTML-full'  // See http://docs.mathjax.org/en/latest/config-files.html
+	},
+
+	dependencies: [
+		{ src: 'plugin/math/math.js', async: true }
+	]
+
+});
+```
+
+Read MathJax's documentation if you need [HTTPS delivery](http://docs.mathjax.org/en/latest/start.html#secure-access-to-the-cdn) or serving of [specific versions](http://docs.mathjax.org/en/latest/configuration.html#loading-mathjax-from-the-cdn) for stability.
+
+
+## Installation
+
+The **basic setup** is for authoring presentations only. The **full setup** gives you access to all reveal.js features and plugins such as speaker notes as well as the development tasks needed to make changes to the source.
+
+### Basic setup
+
+The core of reveal.js is very easy to install. You'll simply need to download a copy of this repository and open the index.html file directly in your browser.
+
+1. Download the latest version of reveal.js from <https://github.com/hakimel/reveal.js/releases>
+
+2. Unzip and replace the example contents in index.html with your own
+
+3. Open index.html in a browser to view it
+
+
+### Full setup
+
+Some reveal.js features, like external Markdown and speaker notes, require that presentations run from a local web server. The following instructions will set up such a server as well as all of the development tasks needed to make edits to the reveal.js source code.
+
+1. Install [Node.js](http://nodejs.org/) (1.0.0 or later)
+
+1. Clone the reveal.js repository
+   ```sh
+   $ git clone https://github.com/hakimel/reveal.js.git
+   ```
+
+1. Navigate to the reveal.js folder
+   ```sh
+   $ cd reveal.js
+   ```
+
+1. Install dependencies
+   ```sh
+   $ npm install
+   ```
+
+1. Serve the presentation and monitor source files for changes
+   ```sh
+   $ npm start
+   ```
+
+1. Open <http://localhost:8000> to view your presentation
+
+   You can change the port by using `npm start -- --port 8001`.
+
+
+### Folder Structure
+- **css/** Core styles without which the project does not function
+- **js/** Like above but for JavaScript
+- **plugin/** Components that have been developed as extensions to reveal.js
+- **lib/** All other third party assets (JavaScript, CSS, fonts)
+
+
+## License
+
+MIT licensed
+
+Copyright (C) 2016 Hakim El Hattab, http://hakim.se

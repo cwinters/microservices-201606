@@ -1,1 +1,1 @@
-web: node present/web.js
+web: node web.js
